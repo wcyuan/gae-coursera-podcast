@@ -48,6 +48,9 @@ import urllib2
 
 ALL_URL = 'https://www.coursera.org/maestro/api/topic/list?full=1'
 LOGIN_URL = 'https://class.coursera.org/%s/auth/auth_redirector?type=login&subtype=normal&email=&visiting=&minimal=true'
+LECTURES_URL = "http://class.coursera.org/%s/lecture/index"
+LOGIN_PATH = '/auth/auth_redirector?type=login&subtype=normal&email=&visiting=&minimal=true'
+LECTURES_PATH = "/lecture/index"
 
 #LOGIN_URL1='https://www.coursera.org/maestro/api/user/login'
 #https://www.coursera.org/maestro/api/topic/list_my?user_id=101589
@@ -80,7 +83,11 @@ def main():
     # None, if thre is no preview available for the course.
     lecture_data = get_preview_lectures(course)
     if lecture_data is None:
-        return
+        print "No preview for course %s" % course['short_name']
+        if opts.username is None or opts.password is None:
+            print "Can't continue without username and password"
+        lecture_data = get_current_lectures(course, opts.username,
+                                            opts.password)
 
     # Print the course and its lectures in the desired format.
     if opts.xml:
@@ -178,15 +185,8 @@ def texttable(table, delim=' '):
                     for line in table)
 
 # --------------------------------------------------------------------
-
-def login(course_name, username, password):
-    """
-    Login to a Coursera course with the given username and password
-    """
-    newurl = readurl(LOGIN_URL % course_name).geturl()
-    return readurl(newurl, {'email_address':username, 'password':password})
-
-# --------------------------------------------------------------------
+# Functions for course list
+#
 
 def all_courses():
     """
@@ -194,14 +194,6 @@ def all_courses():
     Coursera's website.
     """
     return json.load(readurl(ALL_URL))
-
-def find_course(short_name):
-    """
-    Returns a list of courses matching the given course short_name.
-    We expect no more than one match, but return a list to be safe.
-    """
-    return [course for course in all_courses()
-            if course['short_name'] == short_name]
 
 def print_course_list():
     """
@@ -222,20 +214,25 @@ def print_course_list():
                           str(course['preview_link'])])
     print texttable(lines)
 
-def get_preview_lectures(course):
-    """
-    Given the JSON information about a course, from the list of all
-    courses, get the list of lectures.
-    """
+# --------------------------------------------------------------------
+# Functions for a specific course, previews
+#
 
-    # Handle the case where the course does not offer a preview.
-    if course['preview_link'] is None:
-        print "No preview for course %s" % course['short_name']
-        return None
+def find_course(short_name):
+    """
+    Returns a list of courses matching the given course short_name.
+    We expect no more than one match, but return a list to be safe.
+    """
+    return [course for course in all_courses()
+            if course['short_name'] == short_name]
 
-    # If there is a preview, download the page with the list of
-    # lectures
-    preview = bsoup(course['preview_link'])
+def get_lecture_info(lectures_url):
+    """
+    Given a Coursera url which inludes the listing of all the
+    lectures, parse the page and just a list of the relevant info
+    about each lecture.
+    """
+    page = bsoup(lectures_url)
 
     # Go through all the links.  The lecture links are tagged with the
     # class 'lecture-link'.  They look like this:
@@ -245,7 +242,7 @@ def get_preview_lectures(course):
     #
     lectures = []
     name_re = '^(.*)\((\d+:\d+)\)$'
-    for link in preview.find_all('a', attrs={'class': 'lecture-link'}):
+    for link in page.find_all('a', attrs={'class': 'lecture-link'}):
         vidlink = link['data-modal-iframe']
         # strip because video names tend to start with a \n
         vidtext = link.text.strip()
@@ -263,30 +260,49 @@ def get_preview_lectures(course):
 
     return lectures
 
-def get_current_lectures(course):
-    pass
+def get_preview_lectures(course):
+    """
+    Given the JSON information about a course, get the lectures from
+    the course's preview page.
+    """
+    if course['preview_link'] is None:
+        return None
+    return get_lecture_info(course['preview_link'])
 
-#def course_videos(course):
-#    preview = read_course(course)
-#    items = preview.find_all('li')
-#    for item in items:
-#        if len(item.contents) == 0:
-#            continue
-#In [94]: preview.find_all('li')[2].contents[0]
-#Out[94]:
-#<a class="lecture-link" data-lecture-id="1" data-modal=".course-modal-frame" data-modal-iframe="https://class.coursera.org/ml/lecture/preview_view?lecture_id=1" href="https://class.coursera.org/ml/lecture/preview_view/1" rel="lecture-link">
-#Welcome (7 min)</a>
+# --------------------------------------------------------------------
+# Functions for a specific course, login required
+#
 
-#In [95]: preview.find_all('li')[2].contents[0]['class']
-#Out[95]: [u'lecture-link']
+def login(course_url, username, password):
+    """
+    Login to a Coursera course with the given username and password
+    """
+    newurl = readurl(course_url + LOGIN_PATH).geturl()
+    return readurl(newurl, {'email':username,
+                            'password':password,
+                            'login': 'Login'})
 
-#In [96]: preview.find_all('li')[2].contents[0]['href']
-#Out[96]: u'https://class.coursera.org/ml/lecture/preview_view/1'
+def get_current_lectures(course, username, password):
+    """
+    Get the current set of lectures for a given course.
 
-#In [100]: preview.find_all('li')[4].contents[0]['data-modal-iframe']
-#Out[100]: u'https://class.coursera.org/ml/lecture/preview_view?lecture_id=3'
+    Note, it seems that once you get the lecture urls, you can
+    download the videos without logging in.
+    """
+    # The last active instance of the course is generally the
+    # currently running one.
+    instances = [instance for instance in course['courses']
+                 if instance['active']]
+    current = instances[-1]
+    home = current['home_link']
+    login(home, username, password)
+    return get_lecture_info(home + LECTURES_PATH)
 
-        
+# --------------------------------------------------------------------
+# Functions for outputting XML RSS information
+#
+
+
 
 # --------------------------------------------------------------------
 
