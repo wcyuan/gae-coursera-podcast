@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """
-This script creates podcasts of Coursera courses.
-
-It reads from parts of the Coursera website and outputs xml RSS files.
+This script creates podcasts of Coursera courses.  It reads from parts
+of the Coursera website and outputs xml RSS files.
 
 It tries to use the previews of lectures that some Coursera courses
 seem to have, which allows us to read the list of lectures without
@@ -28,7 +27,9 @@ course's lectures.
 
  cousera.py --xml [course-short-name]
 
-If run with the --xml option and a course name, 
+If run with the --xml option and a course name, it will output an RSS
+XML for a podcast that includes all the lectures (so far) for that
+course.
 
 """
 
@@ -44,24 +45,21 @@ import re
 import urllib
 import urllib2
 
-#################################################
+# --------------------------------------------------------------------
+# Constants
 
 ALL_URL = 'https://www.coursera.org/maestro/api/topic/list?full=1'
-LOGIN_URL = 'https://class.coursera.org/%s/auth/auth_redirector?type=login&subtype=normal&email=&visiting=&minimal=true'
-LECTURES_URL = "http://class.coursera.org/%s/lecture/index"
 LOGIN_PATH = '/auth/auth_redirector?type=login&subtype=normal&email=&visiting=&minimal=true'
 LECTURES_PATH = "/lecture/index"
 
-#LOGIN_URL1='https://www.coursera.org/maestro/api/user/login'
-#https://www.coursera.org/maestro/api/topic/list_my?user_id=101589
-#https://eventing.coursera.org/info?key=%22pageview%22&from=%22https%3A%2F%2Fclass.coursera.org%2Fproglang-2012-001%2Fauth%2Fwelcome%3Ftype%3Dlogout%26visiting%3Dhttps%253A%252F%252Fclass.coursera.org%252Fproglang-2012-001%252Fclass%252Findex%22&session=%226563100903-1359865250923%22&client=%22home%22&url=%22https%3A%2F%2Fwww.coursera.org%2Faccount%2Fsignin%3Fr%3Dhttps%253A%252F%252Fclass.coursera.org%252Fproglang-2012-001%252Fauth%252Fauth_redirector%253Ftype%253Dlogin%2526subtype%253Dnormal%2526email%253D%2526visiting%253Dhttps%25253A%25252F%25252Fclass.coursera.org%25252Fproglang-2012-001%25252Fclass%25252Findex%22&time=135986525092
-#from="https://class.coursera.org/proglang-2012-001/auth/welcome?type=logout&visiting=https%3A%2F%2Fclass.coursera.org%2Fproglang-2012-001%2Fclass%2Findex"
-#https://class.coursera.org/proglang-2012-001/auth/welcome?type=logout
-#visiting=https://class.coursera.org/proglang-2012-001/class/index
-#url="https://www.coursera.org/account/signin?r=https%3A%2F%2Fclass.coursera.org%2Fproglang-2012-001%2Fauth%2Fauth_redirector%3Ftype%3Dlogin%26subtype%3Dnormal%26email%3D%26visiting%3Dhttps%253A%252F%252Fclass.coursera.org%252Fproglang-2012-001%252Fclass%252Findex"
-#https://www.coursera.org/account/signin?r=https://class.coursera.org/proglang-2012-001/auth/auth_redirector?type=login&subtype=normal&email=&visiting=https%3A%2F%2Fclass.coursera.org%2Fproglang-2012-001%2Fclass%2Findex
+# Couldn't figure out how to login to the main Coursera page and
+# download the list of courses that you are subscribed to.  I think it
+# comes from this page, but only after having autheticated.
+#
+# https://www.coursera.org/maestro/api/topic/list_my?user_id=101589
 
-#################################################
+# --------------------------------------------------------------------
+# Main and command line arguments
 
 def main():
     opts, course = getopts()
@@ -204,6 +202,10 @@ def print_course_list():
     lines = []
     for ii in range(len(courses)):
         course = courses[ii]
+        # Each course could be offered many times, like every year or
+        # every few months.  So each course has many instances, and
+        # each instance could have its own course webpage and
+        # materials.
         for instance in course['courses']:
             lines.append([str(ii),
                           str(course['short_name']),
@@ -294,6 +296,9 @@ def get_current_lectures(course, username, password):
     instances = [instance for instance in course['courses']
                  if instance['active']]
     current = instances[-1]
+    # home_link looks like:
+    #   http://class.coursera.org/<short_name><suffix>    
+    # where the suffix indicates which instance of the course this is
     home = current['home_link']
     login(home, username, password)
     return get_lecture_info(home + LECTURES_PATH)
