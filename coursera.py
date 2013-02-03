@@ -62,34 +62,35 @@ LECTURES_PATH = "/lecture/index"
 # Main and command line arguments
 
 def main():
-    opts, course = getopts()
+    opts, course_name = getopts()
 
     # If we weren't given a course, just print all the courses.
-    if course is None:
+    if course_name is None:
         print_course_list()
         return
 
     # Find the given course
-    matches = find_course(course)
+    matches = find_course(course_name)
     if len(matches) < 1:
         raise ValueError("Can't find course")
     if len(matches) > 1:
         raise ValueError("Too many matches for course")
-    course = matches[0]
+    course_info = matches[0]
 
     # Get information about each of the lectures.  This might return
     # None, if thre is no preview available for the course.
-    lecture_data = get_preview_lectures(course)
+    lecture_data = get_preview_lectures(course_info)
     if lecture_data is None:
-        print "No preview for course %s" % course['short_name']
+        debug("No preview for course %s" % course_info['short_name'])
         if opts.username is None or opts.password is None:
             print "Can't continue without username and password"
-        lecture_data = get_current_lectures(course, opts.username,
+        lecture_data = get_current_lectures(course_info,
+                                            opts.username,
                                             opts.password)
 
     # Print the course and its lectures in the desired format.
     if opts.xml:
-        print_xml_lectures(course, lecture_data)
+        print course_rss(course_info, lecture_data)
     else:
         print texttable(lecture_data)
 
@@ -113,13 +114,13 @@ def getopts():
         getLogger().setLevel(DEBUG)
 
     if len(args) == 0:
-        course = None
+        course_name = None
     elif len(args) == 1:
-        course = args[0]
+        course_name = args[0]
     else:
         raise ValueError("Too many arguments: %s" % ', '.join(args))
 
-    return opts, course
+    return opts, course_name
 
 # --------------------------------------------------------------------
 # Reading and parsing web pages
@@ -201,19 +202,19 @@ def print_course_list():
     courses = all_courses()
     lines = []
     for ii in range(len(courses)):
-        course = courses[ii]
+        course_info = courses[ii]
         # Each course could be offered many times, like every year or
         # every few months.  So each course has many instances, and
         # each instance could have its own course webpage and
         # materials.
-        for instance in course['courses']:
+        for instance in course_info['courses']:
             lines.append([str(ii),
-                          str(course['short_name']),
+                          str(course_info['short_name']),
                           '%s/%s' % (instance['start_month'],
                                      instance['start_year']),
                           "ACTIVE" if instance['active'] else 'INACTIVE', 
                           str(instance['home_link']),
-                          str(course['preview_link'])])
+                          str(course_info['preview_link'])])
     print texttable(lines)
 
 # --------------------------------------------------------------------
@@ -262,14 +263,14 @@ def get_lecture_info(lectures_url):
 
     return lectures
 
-def get_preview_lectures(course):
+def get_preview_lectures(course_info):
     """
     Given the JSON information about a course, get the lectures from
     the course's preview page.
     """
-    if course['preview_link'] is None:
+    if course_info['preview_link'] is None:
         return None
-    return get_lecture_info(course['preview_link'])
+    return get_lecture_info(course_info['preview_link'])
 
 # --------------------------------------------------------------------
 # Functions for a specific course, login required
@@ -284,18 +285,25 @@ def login(course_url, username, password):
                             'password':password,
                             'login': 'Login'})
 
-def get_current_lectures(course, username, password):
+def get_current_instance(course_info):
+    """
+    Return the information about the currently running instance of the
+    course.
+    """
+    # The last active instance of the course is generally the
+    # currently running one.
+    instances = [instance for instance in course_info['courses']
+                 if instance['active']]
+    return instances[-1]
+
+def get_current_lectures(course_info, username, password):
     """
     Get the current set of lectures for a given course.
 
     Note, it seems that once you get the lecture urls, you can
     download the videos without logging in.
     """
-    # The last active instance of the course is generally the
-    # currently running one.
-    instances = [instance for instance in course['courses']
-                 if instance['active']]
-    current = instances[-1]
+    current = get_current_instance(course_info)
     # home_link looks like:
     #   http://class.coursera.org/<short_name><suffix>    
     # where the suffix indicates which instance of the course this is
@@ -307,7 +315,75 @@ def get_current_lectures(course, username, password):
 # Functions for outputting XML RSS information
 #
 
+def rss_header():
+    return '''
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+<channel>
+'''
 
+def rss_course_info(course_info):
+    instance_info = get_current_instance(course_info)
+    return '''
+<title>{0}</title>
+<link>{1}</link>
+<language>en-us</language>
+<copyright>Copyright 2012 Coursera</copyright>
+<itunes:author>{2}</itunes:author>
+<itunes:summary>
+{3}
+</itunes:summary>
+<description>
+{3}
+</description>
+<itunes:image href="{4}"/>
+<atom:link rel="self" href="http://www.matehat.com/coursera-podcast/feeds/algorithms-design-and-analysis-part-2.xml" type="application/rss+xml"/>
+'''.format(course_info['name'],
+           instance_info['home_link'],
+           course_info['instructor'],
+           course_info['short_description'],
+           course_info['large_icon']
+           )
+
+def rss_footer():
+    return '''
+</channel>
+</rss>
+'''
+
+def rss_lecture_info(course_info, lecture_data):
+    rss_lectures = []
+    pub_date = 'Sat Jan 01 2011 00:00:00 GMT-0500 (EST)'
+    for lecture in lecture_data:
+        (name, duration, size, mp4url) = lecture
+        rss_lectures.append('''
+<item>
+<title>{0}</title>
+<itunes:author>{1}</itunes:author>
+<enclosure url="{2}" length="{3}" type="video/mp4"/>
+<guid>
+{2}
+</guid>
+<pubDate>{3}</pubDate>
+<itunes:duration>{4}</itunes:duration>
+</item>
+'''.format(name,
+           course_info['instructor'],
+           mp4url,
+           size,
+           pub_date,
+           duration,
+           ))
+    return ''.join(rss_lectures)
+
+def course_rss(course_info, lecture_data):
+    """
+    Returns an XML file (as a string) which represents an RSS feed for
+    this course, with an item for each lecture.
+    """
+    return ''.join((rss_header(),
+                    rss_course_info(course_info),
+                    rss_lecture_info(course_info, lecture_data),
+                    rss_footer()))
 
 # --------------------------------------------------------------------
 
