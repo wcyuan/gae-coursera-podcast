@@ -40,6 +40,7 @@ from   itertools  import izip_longest
 import json
 from   logging    import getLogger, DEBUG, debug
 from   optparse   import OptionParser
+import re
 import urllib
 import urllib2
 
@@ -73,10 +74,11 @@ def main():
         raise ValueError("Can't find course")
     if len(matches) > 1:
         raise ValueError("Too many matches for course")
+    course = matches[0]
 
     # Get information about each of the lectures.  This might return
     # None, if thre is no preview available for the course.
-    lecture_data = get_lecture_data(course)
+    lecture_data = get_preview_lectures(course)
     if lecture_data is None:
         return
 
@@ -84,7 +86,7 @@ def main():
     if opts.xml:
         print_xml_lectures(course, lecture_data)
     else:
-        print_lectures(course, lecture_data)
+        print texttable(lecture_data)
 
 def getopts():
     """
@@ -115,6 +117,7 @@ def getopts():
     return opts, course
 
 # --------------------------------------------------------------------
+# Reading and parsing web pages
 
 def get_opener():
     """
@@ -127,7 +130,7 @@ def get_opener():
         setattr(get_opener, 'opener', opener)
     return getattr(get_opener, 'opener')
 
-def readurl(url, data=None):
+def readurl(url, data=None, is_head=False):
     """
     Read a given URL.
     """
@@ -145,6 +148,8 @@ def readurl(url, data=None):
     #
     # and then use urllib2.urlopen
     req = urllib2.Request(url, data)
+    if is_head:
+        req.get_method = lambda : 'HEAD'
     res = get_opener().open(req)
     debug(getattr(get_opener, 'cookiejar'))
     return res
@@ -155,6 +160,22 @@ def bsoup(url):
     trouble with lxml, so force it to use html.parser.
     """
     return BeautifulSoup(readurl(url), 'html.parser')
+
+# --------------------------------------------------------------------
+# Formatting text
+
+def texttable(table, delim=' '):
+    """
+    Print a table (represented as a list of lists) such that the
+    columns line up (every column has the width to accomodate the
+    widest row)
+    """
+    widths = (max(len(fld) for fld in line)
+              for line in izip_longest(*table, fillvalue=""))
+    formats = ["%-{0}s".format(width) for width in widths]
+    return "\n".join(delim.join(format % fld
+                                for (format, fld) in zip(formats, line))
+                    for line in table)
 
 # --------------------------------------------------------------------
 
@@ -182,14 +203,6 @@ def find_course(short_name):
     return [course for course in all_courses()
             if course['short_name'] == short_name]
 
-def texttable(table, delim=' '):
-    widths = (max(len(fld) for fld in line)
-              for line in izip_longest(*table, fillvalue=""))
-    formats = ["%-{0}s".format(width) for width in widths]
-    return "\n".join(delim.join(format % fld
-                                for (format, fld) in zip(formats, line))
-                    for line in table)
-
 def print_course_list():
     """
     Download the list of all courses, and print each course's short
@@ -197,9 +210,11 @@ def print_course_list():
     """
     courses = all_courses()
     lines = []
-    for course in courses:
+    for ii in range(len(courses)):
+        course = courses[ii]
         for instance in course['courses']:
-            lines.append([str(course['short_name']),
+            lines.append([str(ii),
+                          str(course['short_name']),
                           '%s/%s' % (instance['start_month'],
                                      instance['start_year']),
                           "ACTIVE" if instance['active'] else 'INACTIVE', 
@@ -207,7 +222,7 @@ def print_course_list():
                           str(course['preview_link'])])
     print texttable(lines)
 
-def get_lecture_data(course):
+def get_preview_lectures(course):
     """
     Given the JSON information about a course, from the list of all
     courses, get the list of lectures.
@@ -225,12 +240,31 @@ def get_lecture_data(course):
     # Go through all the links.  The lecture links are tagged with the
     # class 'lecture-link'.  They look like this:
     # 
+    # <a class="lecture-link" data-lecture-id="124" data-modal=".course-modal-frame" data-modal-iframe="https://class.coursera.org/nlp/lecture/preview_view?lecture_id=124" href="https://class.coursera.org/nlp/lecture/preview_view/124" rel="lecture-link">
+    # Course Introduction (14:11)</a>
     #
-    for link in preview.find_all('a'):
-        if (not link.has_key('class')):
-            continue
-        if 'lecture-link' not in link['class']:
-            continue
+    lectures = []
+    name_re = '^(.*)\((\d+:\d+)\)$'
+    for link in preview.find_all('a', attrs={'class': 'lecture-link'}):
+        vidlink = link['data-modal-iframe']
+        # strip because video names tend to start with a \n
+        vidtext = link.text.strip()
+        match = re.match(name_re, vidtext)
+        if match is not None:
+            (name, duration) = match.groups()
+        else:
+            name = vidtext
+            duration = None
+        vidpage = bsoup(vidlink)
+        mp4url = vidpage.find('source', attrs={'type': 'video/mp4'})['src']
+        vidinfo = readurl(mp4url, is_head=True)
+        size = vidinfo.headers['Content-Length']
+        lectures.append([name, duration, size, mp4url])
+
+    return lectures
+
+def get_current_lectures(course):
+    pass
 
 #def course_videos(course):
 #    preview = read_course(course)
