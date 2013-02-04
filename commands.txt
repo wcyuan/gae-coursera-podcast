@@ -19,9 +19,19 @@ Register a new app at:
 
 Make sure app.yaml has the app_id that you registered.
 
-Upload the finished app with:
+Upload the finished app using OAuth2:
 
-  appcfg.py update <path to directory>
+  appcfg.py --oauth2 --noauth_local_webserver update <path to directory>
+
+"A page will appear in your web browser prompting you for
+authentication. (If you used the --noauth_local_webserver option, then
+appcfg.py will instead show you a URL to copy/paste into your
+browser.) Log in if necessary. The page will ask whether you wish to
+give appcfg access. Click OK. (If you used the
+--noauth_local_webserver option, then you will be given a token that
+you will need to supply to the prompt from appcfg.py.)"
+
+More details at https://developers.google.com/appengine/docs/python/tools/uploadinganapp#oauth
 
 The app will be at:
 
