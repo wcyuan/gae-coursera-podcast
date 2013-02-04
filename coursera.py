@@ -37,6 +37,7 @@ course.
 # usable on Google App Engine, so I'm sticking to the older tech.
 from   bs4        import BeautifulSoup
 import cookielib
+from   datetime   import datetime, timedelta, date
 from   itertools  import izip_longest
 import json
 from   logging    import getLogger, DEBUG, debug
@@ -352,7 +353,9 @@ def rss_footer():
 
 def rss_lecture_info(course_info, lecture_data):
     rss_lectures = []
-    pub_date = 'Sat Jan 01 2011 00:00:00 GMT-0500 (EST)'
+    # This bogus date is just so that the lectures appear in order
+    pub_date = datetime.strptime('%s0101' % date.today().year, '%Y%m%d')
+    oneday = timedelta(days=1)
     for lecture in lecture_data:
         (name, duration, size, mp4url) = lecture
         rss_lectures.append('''
@@ -363,16 +366,17 @@ def rss_lecture_info(course_info, lecture_data):
 <guid>
 {2}
 </guid>
-<pubDate>{3}</pubDate>
-<itunes:duration>{4}</itunes:duration>
+<pubDate>{4}</pubDate>
+<itunes:duration>{5}</itunes:duration>
 </item>
 '''.format(name,
            course_info['instructor'],
            mp4url,
            size,
-           pub_date,
+           pub_date.strftime("%a, %d %b %Y"),
            duration,
            ))
+        pub_date += oneday
     return ''.join(rss_lectures)
 
 def course_rss(course_info, lecture_data):
