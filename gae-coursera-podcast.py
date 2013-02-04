@@ -5,10 +5,11 @@ A Google App Engine App that makes podcasts of Coursera lectures
 # We would ideally use requests and mechanize, but I want this to be
 # usable on Google App Engine, so I'm sticking to the older tech.
 import coursera_rss
-from   datetime import datetime, timedelta
+from   datetime import datetime, timedelta, date
 import jinja2
 import os
 import webapp2
+import logging
 
 from google.appengine.ext import db
 from google.appengine.api import users as gusers
@@ -60,11 +61,12 @@ class Lecture(db.Model):
         """
         Construct a Lecture key from a course and an index
         """
-        return db.Key.from_path('Course', course_name, 'lecture', index)
+        return db.Key.from_path('Course', course_name, 'Lecture', index)
 
     def pubDate(self):
         start = datetime.strptime('%s0101' % date.today().year, '%Y%m%d')
-        return start + timedelta(days=int(self.key().name()))
+        pubdate = start + timedelta(days=int(self.key().name()))
+        return pubdate.strftime("%a, %d %b %Y")
 
 # --------------------------------------------------------------------
 # Pages
@@ -128,6 +130,7 @@ class UpdatePage(webapp2.RequestHandler):
                     'name': name}))
                 return
             course = matches[0]
+            logging.info("Found course %s" % name)
             course_obj = self.update_course(course)
             lecture_data = coursera_rss.get_preview_lectures(course)
             if lecture_data is None or len(lecture_data) == 0:
@@ -137,6 +140,7 @@ class UpdatePage(webapp2.RequestHandler):
                     self.response.out.write(template.render({
                         'name': name}))
                     return
+                logging.info("No preview, reading current course info %s" % name)
                 lecture_data = coursera_rss.get_current_lectures(course,
                                                                  username,
                                                                  password)
@@ -145,18 +149,21 @@ class UpdatePage(webapp2.RequestHandler):
                 self.response.out.write(template.render({
                     'name': name}))
                 return
+            logging.info("Got lectures")
             for ii in range(len(lecture_data)):
                 (lecture_name, duration, size, mp4url) = lecture_data[ii]
-                lecture_obj = db.get(Lecture.make_key(name,ii))
+                lecture_obj = db.get(Lecture.make_key(name, str(ii)))
                 if lecture_obj is None:
+                    logging.info("Making lecture %d" % ii)
                     lecture_obj = Lecture(
-                        key_name = ii,
+                        key_name = str(ii),
                         name = lecture_name,
                         duration = duration,
                         size = size,
                         url = mp4url,
                         parent = course_obj)
                 else:
+                    logging.info("Updating lecture %d" % ii)
                     lecture_obj.name = lecture_name
                     lecture_obj.duration = duration
                     lecture_obj.size = size
