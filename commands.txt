@@ -1,0 +1,21 @@
+Start the dev server with:
+
+  dev_appserver.py <path to directory>
+
+then point a browser at:
+
+  http://localhost:8080/
+
+Register a new app at:
+
+  https://appengine.google.com/
+
+Make sure app.yaml has the app_id that you registered.
+
+Upload the finished app with:
+
+  appcfg.py update <path to directory>
+
+The app will be at:
+
+  http://<your_app_id>.appspot.com/

@@ -1,0 +1,13 @@
+application: gae-coursera-podcast
+version: 1
+runtime: python27
+api_version: 1
+threadsafe: true
+
+handlers:
+- url: /(home|course|udpate)
+  script: gae-coursera-podcast.app
+
+libraries:
+- name: jinja2
+  version: latest

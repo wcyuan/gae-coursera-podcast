@@ -1,0 +1,34 @@
+<rss xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+<channel>
+
+<title>{{course.full_name}}</title>
+<link>{{course.url}}</link>
+<language>en-us</language>
+<copyright>Copyright 2012 Coursera</copyright>
+<itunes:author>{{course.instructor}}</itunes:author>
+<itunes:summary>
+{{course.description}}
+</itunes:summary>
+<description>
+{{course.description}}
+</description>
+<itunes:image href="{{course.icon_url}}"/>
+<atom:link rel="self" href="http://gae-coursera-podcast.appspot.com/course?name={{course.key()}}" type="application/rss+xml"/>
+
+{% for lecture in lectures %}
+
+<item>
+<title>{{lecture.name}}</title>
+<itunes:author>{{course.instructor}}</itunes:author>
+<enclosure url="{{lecture.url}}" length="{{lecture.size}}" type="video/mp4"/>
+<guid>
+{{lecture.url}}
+</guid>
+<pubDate>{{lecture.pubDate()}}</pubDate>
+<itunes:duration>{{lecture.duration}}</itunes:duration>
+</item>
+
+{% endfor %}
+
+</channel>
+</rss>
