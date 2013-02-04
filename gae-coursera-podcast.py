@@ -7,6 +7,7 @@ A Google App Engine App that makes podcasts of Coursera lectures
 import coursera_rss
 from   datetime import datetime, timedelta
 import jinja2
+import os
 import webapp2
 
 from google.appengine.ext import db
@@ -28,9 +29,9 @@ class Course(db.Model):
     start_date  = db.StringProperty()
     icon_url    = db.StringProperty()
     url         = db.StringProperty()
-    description = db.StringProperty()
+    description = db.TextProperty()
     # This is the last time we created an rss file for this course
-    last_updated = db.DateProperty()
+    last_updated = db.DateTimeProperty()
 
     @classmethod
     def make_key(cls, name):
@@ -111,7 +112,6 @@ class UpdatePage(webapp2.RequestHandler):
         if name is None or name == '':
             all_courses = coursera_rss.all_courses()
             for course in all_courses:
-                instance = get_current_instance(course)
                 self.update_course(course)
             self.redirect('/home')
         else:
@@ -146,7 +146,7 @@ class UpdatePage(webapp2.RequestHandler):
                         name = lecture_name,
                         duration = duration,
                         size = size,
-                        url = mp4url
+                        url = mp4url,
                         parent = course_obj)
                     lecture_obj.put()
                 else:
@@ -158,6 +158,7 @@ class UpdatePage(webapp2.RequestHandler):
             self.redirect('/course?name=' + name)
 
     def update_course(self, course):
+        instance = coursera_rss.get_current_instance(course)
         course_obj = db.get(Course.make_key(course['short_name']))
         if course_obj is None:
             course_obj = Course(

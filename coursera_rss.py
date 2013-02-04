@@ -216,6 +216,13 @@ def print_course_list():
                           "ACTIVE" if instance['active'] else 'INACTIVE', 
                           str(instance['home_link']),
                           str(course_info['preview_link'])])
+        if len(course_info['courses']) == 0:
+            lines.append([str(ii),
+                          str(course_info['short_name']),
+                          'None',
+                          "INACTIVE",
+                          "No-instance",
+                          str(course_info['preview_link'])])
     print texttable(lines)
 
 # --------------------------------------------------------------------
@@ -295,7 +302,11 @@ def get_current_instance(course_info):
     # currently running one.
     instances = [instance for instance in course_info['courses']
                  if instance['active']]
-    return instances[-1]
+    if len(instances) == 0:
+        # If there are no active courses, just return the last one.
+        return course_info['courses'][-1]
+    else:
+        return instances[-1]
 
 def get_current_lectures(course_info, username, password):
     """
