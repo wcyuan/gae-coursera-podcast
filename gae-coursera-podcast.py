@@ -30,6 +30,7 @@ class Course(db.Model):
     icon_url    = db.StringProperty()
     url         = db.StringProperty()
     description = db.TextProperty()
+    preview_url = db.StringProperty()
     # This is the last time we created an rss file for this course
     last_updated = db.DateTimeProperty()
 
@@ -39,6 +40,11 @@ class Course(db.Model):
         Constructs a Datastore key for a Course.
         """
         return db.Key.from_path('Course', name)
+
+    def preview_text(self):
+        if self.preview_url is None or self.preview_url == '':
+            return ""
+        return "Preview"
 
 class Lecture(db.Model):
     """
@@ -58,7 +64,7 @@ class Lecture(db.Model):
 
     def pubDate(self):
         start = datetime.strptime('%s0101' % date.today().year, '%Y%m%d')
-        return start + timedelta(days=int(self.key()))
+        return start + timedelta(days=int(self.key().name()))
 
 # --------------------------------------------------------------------
 # Pages
@@ -106,7 +112,7 @@ class UpdatePage(webapp2.RequestHandler):
     password will not be saved.
     """
     def get(self):
-        name     = self.request.get('course')
+        name     = self.request.get('name')
         username = self.request.get('username')
         password = self.request.get('password')
         if name is None or name == '':
@@ -115,7 +121,7 @@ class UpdatePage(webapp2.RequestHandler):
                 self.update_course(course)
             self.redirect('/home')
         else:
-            matches = find_course(name)
+            matches = coursera_rss.find_course(name)
             if len(matches) == 0:
                 template = jinja_environment.get_template('notfound.html')
                 self.response.out.write(template.render({
@@ -123,16 +129,18 @@ class UpdatePage(webapp2.RequestHandler):
                 return
             course = matches[0]
             course_obj = self.update_course(course)
-            lecture_data = coursera_rss.get_preview_lectures(course_info)
-            if lecture_data is None:
-                if username is None or password is None:
+            lecture_data = coursera_rss.get_preview_lectures(course)
+            if lecture_data is None or len(lecture_data) == 0:
+                if (username is None or username == "" or
+                    password is None or password == ""):
                     template = jinja_environment.get_template('nopreview.html')
                     self.response.out.write(template.render({
                         'name': name}))
-                lecture_data = coursera_rss.get_current_lectures(course_info,
+                    return
+                lecture_data = coursera_rss.get_current_lectures(course,
                                                                  username,
                                                                  password)
-            if lecture_data is None:
+            if lecture_data is None or len(lecture_data) == 0:
                 template = jinja_environment.get_template('notfound.html')
                 self.response.out.write(template.render({
                     'name': name}))
@@ -148,14 +156,16 @@ class UpdatePage(webapp2.RequestHandler):
                         size = size,
                         url = mp4url,
                         parent = course_obj)
-                    lecture_obj.put()
                 else:
                     lecture_obj.name = lecture_name
                     lecture_obj.duration = duration
                     lecture_obj.size = size
                     lecture_obj.url = mp4url
+                lecture_obj.put()
             # Should remove lectures which are no longer valid?
-            self.redirect('/course?name=' + name)
+            course_obj.last_updated = datetime.now()
+            course_obj.put()
+            self.response.out.write("Updated %d lectures" % len(lecture_data))
 
     def update_course(self, course):
         instance = coursera_rss.get_current_instance(course)
@@ -170,6 +180,7 @@ class UpdatePage(webapp2.RequestHandler):
                                               instance['start_year'])
                 ,url          = instance['home_link']
                 ,icon_url     = course['large_icon']
+                ,preview_url  = course['preview_link']
                 ,description  = course['short_description']
                 )
         else:
@@ -177,11 +188,11 @@ class UpdatePage(webapp2.RequestHandler):
             course_obj.full_name   = course['name']
             course_obj.icon_url    = course['large_icon']
             course_obj.url         = instance['home_link']
+            course_obj.preview_url = course['preview_link']
             course_obj.description = course['short_description'] 
             course_obj.start_date  = '%s/%s/%s' % (instance['start_month'],
                                                    instance['start_day'],
                                                    instance['start_year'])
-        course_obj.last_updated = datetime.now()
         course_obj.put()
         return course_obj
 

@@ -278,6 +278,8 @@ def get_preview_lectures(course_info):
     """
     if course_info['preview_link'] is None:
         return None
+    if course_info['preview_link'] == "":
+        return None
     return get_lecture_info(course_info['preview_link'])
 
 # --------------------------------------------------------------------

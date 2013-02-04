@@ -9,9 +9,12 @@
 
     <p>
       There is no free preview for course {{ name }}.  To update the
-      podcast, please login:
+      podcast, please enter your Coursera login infomation.  This
+      information will only be used to upload course information now,
+      the login information will not be saved.
+
       <form action="/update" method="get">
-      <input type="hidden" value="{{ name }}">
+      <input name="name" type="hidden" value="{{ name }}">
       <input name="username">
       <input type="password" name="password">
       <input type="submit" value="update">

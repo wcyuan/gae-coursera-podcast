@@ -13,7 +13,7 @@
 {{course.description}}
 </description>
 <itunes:image href="{{course.icon_url}}"/>
-<atom:link rel="self" href="http://gae-coursera-podcast.appspot.com/course?name={{course.key()}}" type="application/rss+xml"/>
+<atom:link rel="self" href="http://gae-coursera-podcast.appspot.com/course?name={{course.key().name()}}" type="application/rss+xml"/>
 
 {% for lecture in lectures %}
 

@@ -16,18 +16,22 @@
           <th>Name</th>
           <th>Last Updated</th>
           <th>Description</th>
+          <th>Preview</th>
         </tr>
 
     {% for course in courses %}
     <tr>
-      <td><a href="/course?name={{ course.key() }}">
-          {{ course.key() }}
+      <td><a href="/course?name={{ course.key().name() }}">
+          {{ course.key().name() }}
         </a></td>
-      <td><a href="/update?name={{ course.key() }}">
+      <td><a href="/update?name={{ course.key().name() }}">
           {{ course.last_updated }}
         </a></td>
       <td><a href="{{ course.url }}">
           {{ course.description }}
+        </a></td>
+      <td><a href="{{ course.preview_url }}">
+          {{ course.preview_text() }}
         </a></td>
     </tr>
     {% endfor %}
