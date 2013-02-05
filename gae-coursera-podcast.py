@@ -99,6 +99,7 @@ class CoursePage(webapp2.RequestHandler):
                 'name': course_name}))
         else:
             lectures = Lecture.all().ancestor(course)
+            lectures = sorted(lectures, key=lambda l: int(l.key().name()))
             template = jinja_environment.get_template('course.xml')
             self.response.out.write(template.render({
                 'course': course,
