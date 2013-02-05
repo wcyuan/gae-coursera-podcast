@@ -64,9 +64,18 @@ class Lecture(db.Model):
         return db.Key.from_path('Course', course_name, 'Lecture', index)
 
     def pubDate(self):
+        """
+        The pub date is just a bogus date to make the lecture appear
+        in the same order as on the screen.
+
+        Note that some courses list the newest week first and some
+        list the newest week last, and we'll do whatever order it is
+        on the screen, so the newest lecture might not appear as the
+        newest available podcast.
+        """
         start = datetime.strptime('%s0101' % date.today().year, '%Y%m%d')
         pubdate = start + timedelta(days=int(self.key().name()))
-        return pubdate.strftime("%a, %d %b %Y")
+        return pubdate.strftime("%a, %d %b %Y 12:00:00 -0500")
 
 # --------------------------------------------------------------------
 # Pages

@@ -386,7 +386,7 @@ def rss_lecture_info(course_info, lecture_data):
            course_info['instructor'],
            mp4url,
            size,
-           pub_date.strftime("%a, %d %b %Y"),
+           pub_date.strftime("%a, %d %b %Y 12:00:00 -0500"),
            duration,
            ))
         pub_date += oneday
