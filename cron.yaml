@@ -18,3 +18,15 @@ cron:
 - description: aiplan lecture update
   url: /update?name=aiplan&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
   schedule: every day 0:25
+
+- description: criticalthinking lecture update
+  url: /update?name=criticalthinking&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+  schedule: every day 0:30
+
+- description: analytical combinatorics lecture update
+  url: /update?name=introACpartI&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+  schedule: every day 0:35
+
+- description: intro phil lecture update
+  url: /update?name=introphil&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+  schedule: every day 0:40
