@@ -252,22 +252,29 @@ def get_lecture_info(lectures_url):
     # Course Introduction (14:11)</a>
     #
     lectures = []
-    name_re = '^(.*)\((\d+:\d+)\)$'
-    for link in page.find_all('a', attrs={'class': 'lecture-link'}):
-        vidlink = link['data-modal-iframe']
-        # strip because video names tend to start with a \n
-        vidtext = link.text.strip()
-        match = re.match(name_re, vidtext)
-        if match is not None:
-            (name, duration) = match.groups()
-        else:
-            name = vidtext
-            duration = None
-        vidpage = bsoup(vidlink)
-        mp4url = vidpage.find('source', attrs={'type': 'video/mp4'})['src']
-        vidinfo = readurl(mp4url, is_head=True)
-        size = vidinfo.headers['Content-Length']
-        lectures.append([name, duration, size, mp4url])
+    name_re = '^(.*)[\(\[](\d+:\d+)[\)\]]$'
+
+    weeks = page.find_all('div', attrs={'class': 'course-item-list-header'})
+    for week in weeks:
+        week_desc = week.text.strip()
+        lecture_list = week.next_sibling
+        for link in lecture_list.find_all('a', attrs={'class': 'lecture-link'}):
+            vidlink = link['data-modal-iframe']
+            # strip because video names tend to start with a \n
+            vidtext = link.text.strip()
+            match = re.match(name_re, vidtext)
+            if match is not None:
+                (name, duration) = match.groups()
+            else:
+                name = vidtext
+                duration = ''
+            vidpage = bsoup(vidlink)
+            mp4url = vidpage.find('source', attrs={'type': 'video/mp4'})['src']
+            vidinfo = readurl(mp4url, is_head=True)
+            size = vidinfo.headers['Content-Length']
+            description = "%s : %s" % (week_desc, name)
+            full_name = "%s - %s" % (week_desc[:13], name)
+            lectures.append([full_name, duration, size, mp4url, description])
 
     return lectures
 
@@ -370,12 +377,15 @@ def rss_lecture_info(course_info, lecture_data):
     pub_date = datetime.strptime('%s0101' % date.today().year, '%Y%m%d')
     oneday = timedelta(days=1)
     for lecture in lecture_data:
-        (name, duration, size, mp4url) = lecture
+        (name, duration, size, mp4url, description) = lecture
         rss_lectures.append('''
 <item>
 <title>{0}</title>
 <itunes:author>{1}</itunes:author>
 <enclosure url="{2}" length="{3}" type="video/mp4"/>
+<description>
+{6}
+</description>
 <guid>
 {2}
 </guid>
@@ -388,6 +398,7 @@ def rss_lecture_info(course_info, lecture_data):
            size,
            pub_date.strftime("%a, %d %b %Y 12:00:00 -0500"),
            duration,
+           description,
            ))
         pub_date += oneday
     return ''.join(rss_lectures)

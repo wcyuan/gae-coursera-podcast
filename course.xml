@@ -19,6 +19,7 @@
 
 <item>
 <title>{{lecture.name}}</title>
+<description>{{lecture.description}}</description>
 <itunes:author>{{course.instructor}}</itunes:author>
 <enclosure url="{{lecture.url}}" length="{{lecture.size}}" type="video/mp4"/>
 <guid>

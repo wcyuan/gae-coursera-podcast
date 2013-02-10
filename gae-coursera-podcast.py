@@ -55,6 +55,7 @@ class Lecture(db.Model):
     duration = db.StringProperty()
     size     = db.StringProperty()
     url      = db.StringProperty(required=True)
+    description = db.StringProperty()
 
     @classmethod
     def make_key(cls, course_name, index):
@@ -161,7 +162,7 @@ class UpdatePage(webapp2.RequestHandler):
                 return
             logging.info("Got lectures")
             for ii in range(len(lecture_data)):
-                (lecture_name, duration, size, mp4url) = lecture_data[ii]
+                (lecture_name, duration, size, mp4url, description) = lecture_data[ii]
                 lecture_obj = db.get(Lecture.make_key(name, str(ii)))
                 if lecture_obj is None:
                     logging.info("Making lecture %d" % ii)
@@ -171,6 +172,7 @@ class UpdatePage(webapp2.RequestHandler):
                         duration = duration,
                         size = size,
                         url = mp4url,
+                        description = description,
                         parent = course_obj)
                 else:
                     logging.info("Updating lecture %d" % ii)
@@ -178,6 +180,7 @@ class UpdatePage(webapp2.RequestHandler):
                     lecture_obj.duration = duration
                     lecture_obj.size = size
                     lecture_obj.url = mp4url
+                    lecture_obj.description = description
                 lecture_obj.put()
             # Should remove lectures which are no longer valid?
             course_obj.last_updated = datetime.now()
