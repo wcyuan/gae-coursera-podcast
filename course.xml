@@ -14,6 +14,8 @@
 </description>
 <itunes:image href="{{course.icon_url}}"/>
 <atom:link rel="self" href="http://gae-coursera-podcast.appspot.com/course?name={{course.key().name()}}" type="application/rss+xml"/>
+<pubDate>{{course.pubDate()}}</pubDate>
+<lastBuildDate>{{course.lastBuildDate()}}</lastBuildDate>
 
 {% for lecture in lectures %}
 

@@ -52,6 +52,8 @@ import urllib2
 ALL_URL = 'https://www.coursera.org/maestro/api/topic/list?full=1'
 LOGIN_PATH = '/auth/auth_redirector?type=login&subtype=normal&email=&visiting=&minimal=true'
 LECTURES_PATH = "/lecture/index"
+TIME_FORMAT = "%a, %d %b %Y %H:%M:%S -0500"
+
 
 # Couldn't figure out how to login to the main Coursera page and
 # download the list of courses that you are subscribed to.  I think it
@@ -374,7 +376,8 @@ def rss_footer():
 def rss_lecture_info(course_info, lecture_data):
     rss_lectures = []
     # This bogus date is just so that the lectures appear in order
-    pub_date = datetime.strptime('%s0101' % date.today().year, '%Y%m%d')
+    pub_date = datetime.strptime(datetime.now().strftime("%Y0101 %H:%M:%S"),
+                                 '%Y%m%d %H:%M:%S')
     oneday = timedelta(days=1)
     for lecture in lecture_data:
         (name, duration, size, mp4url, description) = lecture
@@ -396,7 +399,7 @@ def rss_lecture_info(course_info, lecture_data):
            course_info['instructor'],
            mp4url,
            size,
-           pub_date.strftime("%a, %d %b %Y 12:00:00 -0500"),
+           pub_date.strftime(TIME_FORMAT),
            duration,
            description,
            ))

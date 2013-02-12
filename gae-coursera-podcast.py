@@ -47,6 +47,12 @@ class Course(db.Model):
             return ""
         return "Preview"
 
+    def pubDate(self):
+        return datetime.now().strftime(coursera_rss.TIME_FORMAT)
+
+    def lastBuildDate(self):
+        return datetime.now().strftime(coursera_rss.TIME_FORMAT)
+
 class Lecture(db.Model):
     """
     Models a lecture in a course.
@@ -74,9 +80,10 @@ class Lecture(db.Model):
         on the screen, so the newest lecture might not appear as the
         newest available podcast.
         """
-        start = datetime.strptime('%s0101' % date.today().year, '%Y%m%d')
+        start = datetime.strptime(datetime.now().strftime("%Y0101 %H:%M:%S"),
+                                  '%Y%m%d %H:%M:%S')
         pubdate = start + timedelta(days=int(self.key().name()))
-        return pubdate.strftime("%a, %d %b %Y 12:00:00 -0500")
+        return pubdate.strftime(coursera_rss.TIME_FORMAT)
 
 # --------------------------------------------------------------------
 # Pages
@@ -209,14 +216,12 @@ class UpdatePage(webapp2.RequestHandler):
             course_obj.icon_url    = course['large_icon']
             course_obj.url         = instance['home_link']
             course_obj.preview_url = course['preview_link']
-            course_obj.description = course['short_description'] 
+            course_obj.description = course['short_description']
             course_obj.start_date  = '%s/%s/%s' % (instance['start_month'],
                                                    instance['start_day'],
                                                    instance['start_year'])
         course_obj.put()
         return course_obj
-
-               
 
 # -------------------------------------------------------------------
 # webapp
