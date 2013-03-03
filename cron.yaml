@@ -11,22 +11,18 @@ cron:
   url: /update?name=energy101&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
   schedule: every day 0:15
 
-- description: dsd lecture update
-  url: /update?name=digitalsounddesign&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+- description: compinvesting1 lecture update
+  url: /update?name=compinvesting1
   schedule: every day 0:20
 
-- description: aiplan lecture update
-  url: /update?name=aiplan&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+- description: fe lecture update
+  url: /update?name=fe&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
   schedule: every day 0:25
-
-- description: criticalthinking lecture update
-  url: /update?name=criticalthinking&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
-  schedule: every day 0:30
 
 - description: analytical combinatorics lecture update
   url: /update?name=introACpartI&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
-  schedule: every day 0:35
+  schedule: every day 0:30
 
-- description: intro phil lecture update
-  url: /update?name=introphil&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
-  schedule: every day 0:40
+- description: songwriting lecture update
+  url: /update?name=songwriting&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+  schedule: every day 0:35
