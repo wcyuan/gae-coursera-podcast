@@ -26,3 +26,7 @@ cron:
 - description: songwriting lecture update
   url: /update?name=songwriting&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
   schedule: every day 0:35
+
+- description: dsp lecture update
+  url: /update?name=dsp&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+  schedule: every day 0:40
