@@ -5,7 +5,7 @@ api_version: 1
 threadsafe: true
 
 handlers:
-- url: /(home|course|update)
+- url: /(|home|course|update)
   script: gae-coursera-podcast.app
 
 libraries:

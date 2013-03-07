@@ -150,6 +150,12 @@ class UpdatePage(webapp2.RequestHandler):
             course = matches[0]
             logging.info("Found course %s" % name)
             course_obj = self.update_course(course)
+            if course_obj is None:
+                logging.info("Course %s has no instances" % name)
+                template = jinja_environment.get_template('notfound.html')
+                self.response.out.write(template.render({
+                    'name': name}))
+                return
             lecture_data = coursera_rss.get_preview_lectures(course)
             if lecture_data is None or len(lecture_data) == 0:
                 if (username is None or username == "" or
@@ -196,6 +202,8 @@ class UpdatePage(webapp2.RequestHandler):
 
     def update_course(self, course):
         instance = coursera_rss.get_current_instance(course)
+        if instance is None:
+            return
         course_obj = db.get(Course.make_key(course['short_name']))
         if course_obj is None:
             course_obj = Course(
@@ -228,6 +236,7 @@ class UpdatePage(webapp2.RequestHandler):
 
 app = webapp2.WSGIApplication(
     [('/home',        HomePage)
+     ,('/',           HomePage)
      ,('/course',     CoursePage)
      ,('/update',     UpdatePage)
      ],

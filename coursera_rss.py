@@ -309,6 +309,9 @@ def get_current_instance(course_info):
     Return the information about the currently running instance of the
     course.
     """
+    # Return None if there are no instances of the course at all
+    if len(course_info['courses']) == 0:
+        return None
     # The last active instance of the course is generally the
     # currently running one.
     instances = [instance for instance in course_info['courses']
