@@ -3,10 +3,6 @@ cron:
   url: /update
   schedule: every day 0:00
 
-- description: proglang lecture update
-  url: /update?name=proglang&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
-  schedule: every day 0:10
-
 - description: energy lecture update
   url: /update?name=energy101&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
   schedule: every day 0:15
