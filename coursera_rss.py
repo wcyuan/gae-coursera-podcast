@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 This script creates podcasts of Coursera courses.  It reads from parts
 of the Coursera website and outputs xml RSS files.
@@ -63,6 +64,8 @@ import re
 import urllib
 import urllib2
 import tempfile
+import os
+import StringIO
 
 # --------------------------------------------------------------------
 # Constants
@@ -87,11 +90,11 @@ def main():
 
     # If we weren't given a course, just print all the courses.
     if course_name is None:
-        print_course_list()
+        print_course_list(courses_file=opts.courses)
         return
 
     # Find the given course
-    matches = find_course(course_name)
+    matches = find_course(course_name, courses_file=opts.courses)
     if len(matches) < 1:
         raise ValueError("Can't find course")
     if len(matches) > 1:
@@ -130,6 +133,8 @@ def getopts():
                       help='Cousera username')
     parser.add_option('-p', '--password',
                       help='Output XML RSS format')
+    parser.add_option('--courses',
+                      help='file with full list of courses')
     opts, args = parser.parse_args()
     if opts.verbose:
         getLogger().setLevel(DEBUG)
@@ -163,7 +168,9 @@ class ReadUrl(object):
         #self.hn, self.fn = tempfile.mkstemp()
         #self.cj = cookielib.MozillaCookieJar(self.fn)
         self.cj = cookielib.CookieJar()
-        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
+        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj),
+                                           urllib2.HTTPHandler(),
+                                           urllib2.HTTPSHandler())
         self.set_headers()
         #print self.fn
 
@@ -199,8 +206,9 @@ class ReadUrl(object):
         if is_head:
             req.get_method = lambda : 'HEAD'
         res = self.opener.open(req)
+        debug(res.headers.items())
         self.save_cookies()
-        self.reset()
+        #self.reset()
         return res
 
     def save_cookies(self):
@@ -211,14 +219,14 @@ class ReadUrl(object):
                     continue
                 self.csrftoken = cookie.value
                 debug("Got CSRF {0}".format(self.csrftoken))
-            elif cookie.name == 'session' and self.session is None:
+            elif cookie.name == 'session':
                 if self.session is not None:
                     debug("Ignoring second session {0}".format(cookie.value))
                     continue
                 self.session = cookie.value
                 debug("Got session {0}".format(self.csrftoken))
             else:
-                debug("Skipping cookie {0}".format(cookie))
+                print "Skipping cookie {0}".format(cookie)
         self.set_headers()
 
     def bsoup(self, url):
@@ -250,19 +258,23 @@ def texttable(table, delim=' '):
 # Functions for course list
 #
 
-def all_courses():
+def all_courses(courses_file=None):
     """
     Return the JSON from reading the list of all courses from
     Coursera's website.
     """
-    return json.load(READURL.readurl(ALL_URL))
+    if courses_file is None:
+        data = READURL.readurl(ALL_URL)
+    else:
+        data = open(courses_file)
+    return json.load(data)
 
-def print_course_list():
+def print_course_list(courses_file=None):
     """
     Download the list of all courses, and print each course's short
     name
     """
-    courses = all_courses()
+    courses = all_courses(courses_file=None)
     lines = []
     for ii in range(len(courses)):
         course_info = courses[ii]
@@ -291,21 +303,24 @@ def print_course_list():
 # Functions for a specific course, previews
 #
 
-def find_course(short_name):
+def find_course(short_name, courses_file=None):
     """
     Returns a list of courses matching the given course short_name.
     We expect no more than one match, but return a list to be safe.
     """
-    return [course for course in all_courses()
+    return [course for course in all_courses(courses_file)
             if course['short_name'] == short_name]
 
-def get_lecture_info(lectures_url):
+def get_lecture_info(lectures_url, page=None):
     """
     Given a Coursera url which inludes the listing of all the
     lectures, parse the page and just a list of the relevant info
     about each lecture.
     """
-    page = READURL.bsoup(lectures_url)
+    if page is None:
+        page = READURL.bsoup(lectures_url)
+    else:
+        page = BeautifulSoup(page, 'html.parser')
 
     # Go through all the links.  The lecture links are tagged with the
     # class 'lecture-link'.  They look like this:
@@ -359,18 +374,108 @@ def login(course_url, username, password):
     """
     Login to a Coursera course with the given username and password
     """
+
+    csrftoken = ''
+    session = ''
+    hn, fn = tempfile.mkstemp()
+    cookies = cookielib.LWPCookieJar()
+    handlers = [
+        urllib2.HTTPHandler(),
+        urllib2.HTTPSHandler(),
+        urllib2.HTTPCookieProcessor(cookies)
+        ]
+    opener = urllib2.build_opener(*handlers)
+
+    req = urllib2.Request(course_url + LECTURES_PATH)
+    print opener
+    print req
+    print req.get_full_url()
+    print cookies
+    res = opener.open(req)
+
+    for cookie in cookies:
+        if cookie.name == 'csrf_token':
+            csrftoken = cookie.value
+            print "got csrf %s" % csrftoken
+            break
+    opener.close()
+
+    # Now make a call to the authenticator url:
+    cj = cookielib.MozillaCookieJar(fn)
+    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj),
+                                  urllib2.HTTPHandler(),
+                                  urllib2.HTTPSHandler())
+
+    opener.addheaders.append(('Cookie', 'csrftoken=%s' % csrftoken))
+    opener.addheaders.append(('Referer', 'https://www.coursera.org'))
+    opener.addheaders.append(('X-CSRFToken', csrftoken))
+    req = urllib2.Request(AUTH_URL)
+
+    data = urllib.urlencode({'email_address': username,
+                             'password': password})
+    req.add_data(data)
+
+    print opener
+    print req
+    print req.get_full_url()
+    print req.data
+    print opener.addheaders
+    print cj
+    opener.open(req)
+
+    cj.save()
+    opener.close()
+    os.close(hn)
+
+    cj = cookielib.MozillaCookieJar()
+    cookies = StringIO.StringIO()
+    NETSCAPE_HEADER = '# Netscape HTTP Cookie File'
+    cookies.write(NETSCAPE_HEADER)
+    cookies.write(open(fn, 'r').read())
+    cookies.flush()
+    cookies.seek(0)
+    cj._really_load(cookies, 'StringIO.cookies', False, False)
+
+    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj),
+                                  urllib2.HTTPHandler(),
+                                  urllib2.HTTPSHandler())
+
+    req = urllib2.Request(course_url + LOGIN_PATH,
+                          urllib.urlencode({'type':'login', 'subtype': 'normal'}))
+    opener.open(req)
+
+    for cookie in cj:
+            if cookie.name == 'session':
+                session = cookie.value
+                print "got session %s" % session
+                break
+            print cookie
+    print "session: %s" % session
+    opener.close()
+
+    opener = urllib2.build_opener(urllib2.HTTPHandler(), urllib2.HTTPSHandler())
+    req = urllib2.Request(course_url + LECTURES_PATH)
+
+    opener.addheaders.append(('Cookie', 'csrf_token=%s;session=%s' % (csrftoken, session)))
+    ret = opener.open(req).read()
+
+    # opener = get_opener(cookies_file)
+    # ret = opener.open(url).read()
+    opener.close()
+    return ret
+
     # first read the LECTURE_PATH to set the CSRFToken
-    READURL.readurl(course_url + LECTURES_PATH)
+    #READURL.readurl(course_url + LECTURES_PATH)
 
     # then read the AUTH_URL with username and password set
-    READURL.readurl(AUTH_URL, {'email':username,
-                               'password':password})
+    #READURL.readurl(AUTH_URL, {'email':username,
+    #'password':password})
 
     # then read the LOGIN_PATH (auth-redirector) to get the session id
-    READURL.readurl(course_url + LOGIN_PATH, {'type':'login', 'subtype': 'normal'})
+    #READURL.readurl(course_url + LOGIN_PATH, {'type':'login', 'subtype': 'normal'})
 
     # then read the LECTURE_PATH again
-    return READURL.readurl(course_url + LECTURES_PATH)
+    #return READURL.readurl(course_url + LECTURES_PATH)
                                     
     #newurl = READURL.readurl(course_url + LOGIN_PATH).geturl()
     #return READURL.readurl(newurl, {'email':username,
@@ -407,8 +512,7 @@ def get_current_lectures(course_info, username, password):
     #   http://class.coursera.org/<short_name><suffix>    
     # where the suffix indicates which instance of the course this is
     home = current['home_link']
-    login(home, username, password)
-    return get_lecture_info(home + LECTURES_PATH)
+    return get_lecture_info(home + LECTURES_PATH, page=login(home, username, password))
 
 # --------------------------------------------------------------------
 # Functions for outputting XML RSS information
