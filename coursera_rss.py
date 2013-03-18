@@ -321,6 +321,7 @@ def get_lecture_info(lectures_url, page=None):
         page = READURL.bsoup(lectures_url)
     else:
         page = BeautifulSoup(page, 'html.parser')
+        #print page
 
     # Go through all the links.  The lecture links are tagged with the
     # class 'lecture-link'.  They look like this:
@@ -402,9 +403,9 @@ def login(course_url, username, password):
 
     # Now make a call to the authenticator url:
     cj = cookielib.MozillaCookieJar(fn)
-    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj),
-                                  urllib2.HTTPHandler(),
-                                  urllib2.HTTPSHandler())
+    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
+    #urllib2.HTTPHandler(),
+    #                              urllib2.HTTPSHandler())
 
     opener.addheaders.append(('Cookie', 'csrftoken=%s' % csrftoken))
     opener.addheaders.append(('Referer', 'https://www.coursera.org'))
@@ -450,12 +451,12 @@ def login(course_url, username, password):
                 break
             print cookie
     print "session: %s" % session
-    opener.close()
+    #opener.close()
 
-    opener = urllib2.build_opener(urllib2.HTTPHandler(), urllib2.HTTPSHandler())
+    #opener = urllib2.build_opener(urllib2.HTTPHandler(), urllib2.HTTPSHandler())
     req = urllib2.Request(course_url + LECTURES_PATH)
 
-    opener.addheaders.append(('Cookie', 'csrf_token=%s;session=%s' % (csrftoken, session)))
+    #opener.addheaders.append(('Cookie', 'csrf_token=%s;session=%s' % (csrftoken, session)))
     ret = opener.open(req).read()
 
     # opener = get_opener(cookies_file)
