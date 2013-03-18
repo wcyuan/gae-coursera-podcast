@@ -31,6 +31,23 @@ If run with the --xml option and a course name, it will output an RSS
 XML for a podcast that includes all the lectures (so far) for that
 course.
 
+Really, this should use the requests python library to parse web
+pages.  http://docs.python-requests.org/en/latest/.  However, that
+library is not yet compatible with Google App Engine according to
+http://stackoverflow.com/questions/9762685/using-the-requests-python-library-in-google-app-engine
+and
+https://github.com/kennethreitz/requests/pull/493#issuecomment-4556331.
+
+Another possibility is to use Mechanize.  Mechanize doesn't
+immediately work with Google App Engine, but there are patches that
+work, such as https://code.google.com/p/gaemechanize2/ (also see
+http://stackoverflow.com/questions/1902079/python-mechanize-gaepython-code/2056543#2056543)
+
+At this point, I'm just following
+https://github.com/jplehmann/coursera.  There was a recent change to
+Coursera Authetication which they deal with in
+https://github.com/jplehmann/coursera/commit/6e2725edf9e5c5be88ed5a95c84f6834ada012a0
+
 """
 
 # We would ideally use requests and mechanize, but I want this to be
@@ -45,15 +62,16 @@ from   optparse   import OptionParser
 import re
 import urllib
 import urllib2
+import tempfile
 
 # --------------------------------------------------------------------
 # Constants
 
 ALL_URL = 'https://www.coursera.org/maestro/api/topic/list?full=1'
-LOGIN_PATH = '/auth/auth_redirector?type=login&subtype=normal&email=&visiting=&minimal=true'
+LOGIN_PATH = '/auth/auth_redirector'
 LECTURES_PATH = "/lecture/index"
 TIME_FORMAT = "%a, %d %b %Y %H:%M:%S -0500"
-
+AUTH_URL = 'https://www.coursera.org/maestro/api/user/login'
 
 # Couldn't figure out how to login to the main Coursera page and
 # download the list of courses that you are subscribed to.  I think it
@@ -128,47 +146,89 @@ def getopts():
 # --------------------------------------------------------------------
 # Reading and parsing web pages
 
-def get_opener():
-    """
-    Return a urllib2 opener that saves cookies
-    """
-    if not hasattr(get_opener, 'opener'):
-        cj = cookielib.CookieJar()
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
-        setattr(get_opener, 'cookiejar', cj)
-        setattr(get_opener, 'opener', opener)
-    return getattr(get_opener, 'opener')
+class ReadUrl(object):
+    def __init__(self):
+        # Make a urllib2 opener that saves cookies
+        self.csrftoken = None
+        self.session   = None
+        self.cj        = None
+        self.opener    = None
+        #self.hn        = None
+        #self.fn        = None
+        self.reset()
 
-def readurl(url, data=None, is_head=False):
-    """
-    Read a given URL.
-    """
-    debug("Reading %s with data %s" % (url, data))
+    def reset(self):
+        if self.opener is not None:
+            self.opener.close()
+        #self.hn, self.fn = tempfile.mkstemp()
+        #self.cj = cookielib.MozillaCookieJar(self.fn)
+        self.cj = cookielib.CookieJar()
+        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
+        self.set_headers()
+        #print self.fn
 
-    # Encode any params
-    if data is not None:
-        data = urllib.urlencode(data)
+    def set_headers(self):
+        if self.csrftoken is not None and self.session is not None:
+            self.opener.addheaders.append(('Cookie', 'csrf_token=%s;session=%s' %
+                                           (self.csrftoken, self.session)))
+        elif self.csrftoken is not None:
+            self.opener.addheaders.append(('Cookie', 'csrftoken=%s' % self.csrftoken))
+            self.opener.addheaders.append(('Referer', 'https://www.coursera.org'))
+            self.opener.addheaders.append(('X-CSRFToken', self.csrftoken))
 
-    # Create the request and open it.  In order to use cookies, we
-    # always use the standard opener to read pages.  An alternative
-    # would have been to set the default opener with
-    #
-    #   urllib2.install_opener(get_opener())
-    #
-    # and then use urllib2.urlopen
-    req = urllib2.Request(url, data)
-    if is_head:
-        req.get_method = lambda : 'HEAD'
-    res = get_opener().open(req)
-    debug(getattr(get_opener, 'cookiejar'))
-    return res
+    def readurl(self, url, data=None, is_head=False):
+        """
+        Read a given URL.
+        """
+        debug("Reading %s with data %s" % (url, data))
+        debug(self.cj)
+        debug(self.opener.addheaders)
 
-def bsoup(url):
-    """
-    Parse a given URL with Beautiful Soup.  Seems to sometimes have
-    trouble with lxml, so force it to use html.parser.
-    """
-    return BeautifulSoup(readurl(url), 'html.parser')
+        # Encode any params
+        if data is not None:
+            data = urllib.urlencode(data)
+
+        # Create the request and open it.  In order to use cookies, we
+        # always use the standard opener to read pages.  An alternative
+        # would have been to set the default opener with
+        #
+        #   urllib2.install_opener(get_opener())
+        #
+        # and then use urllib2.urlopen
+        req = urllib2.Request(url, data)
+        if is_head:
+            req.get_method = lambda : 'HEAD'
+        res = self.opener.open(req)
+        self.save_cookies()
+        self.reset()
+        return res
+
+    def save_cookies(self):
+        for cookie in self.cj: 
+            if cookie.name == 'csrf_token':
+                if self.csrftoken is not None:
+                    debug("Ignoring second CSRF {0}".format(cookie.value))
+                    continue
+                self.csrftoken = cookie.value
+                debug("Got CSRF {0}".format(self.csrftoken))
+            elif cookie.name == 'session' and self.session is None:
+                if self.session is not None:
+                    debug("Ignoring second session {0}".format(cookie.value))
+                    continue
+                self.session = cookie.value
+                debug("Got session {0}".format(self.csrftoken))
+            else:
+                debug("Skipping cookie {0}".format(cookie))
+        self.set_headers()
+
+    def bsoup(self, url):
+        """
+        Parse a given URL with Beautiful Soup.  Seems to sometimes have
+        trouble with lxml, so force it to use html.parser.
+        """
+        return BeautifulSoup(self.readurl(url), 'html.parser')
+
+READURL=ReadUrl()
 
 # --------------------------------------------------------------------
 # Formatting text
@@ -195,7 +255,7 @@ def all_courses():
     Return the JSON from reading the list of all courses from
     Coursera's website.
     """
-    return json.load(readurl(ALL_URL))
+    return json.load(READURL.readurl(ALL_URL))
 
 def print_course_list():
     """
@@ -245,7 +305,7 @@ def get_lecture_info(lectures_url):
     lectures, parse the page and just a list of the relevant info
     about each lecture.
     """
-    page = bsoup(lectures_url)
+    page = READURL.bsoup(lectures_url)
 
     # Go through all the links.  The lecture links are tagged with the
     # class 'lecture-link'.  They look like this:
@@ -270,9 +330,9 @@ def get_lecture_info(lectures_url):
             else:
                 name = vidtext
                 duration = ''
-            vidpage = bsoup(vidlink)
+            vidpage = READURL.bsoup(vidlink)
             mp4url = vidpage.find('source', attrs={'type': 'video/mp4'})['src']
-            vidinfo = readurl(mp4url, is_head=True)
+            vidinfo = READURL.readurl(mp4url, is_head=True)
             size = vidinfo.headers['Content-Length']
             description = "%s : %s" % (week_desc, name)
             full_name = "%s - %s" % (week_desc[:13], name)
@@ -299,10 +359,23 @@ def login(course_url, username, password):
     """
     Login to a Coursera course with the given username and password
     """
-    newurl = readurl(course_url + LOGIN_PATH).geturl()
-    return readurl(newurl, {'email':username,
-                            'password':password,
-                            'login': 'Login'})
+    # first read the LECTURE_PATH to set the CSRFToken
+    READURL.readurl(course_url + LECTURES_PATH)
+
+    # then read the AUTH_URL with username and password set
+    READURL.readurl(AUTH_URL, {'email':username,
+                               'password':password})
+
+    # then read the LOGIN_PATH (auth-redirector) to get the session id
+    READURL.readurl(course_url + LOGIN_PATH, {'type':'login', 'subtype': 'normal'})
+
+    # then read the LECTURE_PATH again
+    return READURL.readurl(course_url + LECTURES_PATH)
+                                    
+    #newurl = READURL.readurl(course_url + LOGIN_PATH).geturl()
+    #return READURL.readurl(newurl, {'email':username,
+    #                                'password':password,
+    #                                'login': 'Login'})
 
 def get_current_instance(course_info):
     """

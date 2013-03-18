@@ -1,0 +1,29 @@
+$ ./coursera_dl.py -u conanyuan+coursera@gmail.com -p Coursera fe-001
+Downloading class: fe-001
+<urllib2.OpenerDirector instance at 0x7eccb16c>
+<urllib2.Request instance at 0x7eccb20c>
+https://class.coursera.org/fe-001/lecture/index
+<_LWPCookieJar.LWPCookieJar[]>
+got csrf btO0xobtElGkZhVoBLTe
+<urllib2.OpenerDirector instance at 0x7ecc5ecc>
+<urllib2.Request instance at 0x7ecc5e2c>
+https://www.coursera.org/maestro/api/user/login
+<_MozillaCookieJar.MozillaCookieJar[]>
+got session cFWSNdnt8PI09koa0nH3GaEMYg7F%2FgcTFCWSrJTY9D7qGVQvYbnVNOpmee8vA08sACsmZPbXyXSSB7mGfymx%2Fw%3D%3D%7CqGZY%2FkKy%2FjLKBBSyOaA6tSRbAJQZaOIB1UJcCZRtj%2FafKR3MFD0U5c2nfkxd9t4QeUhNdKq7oDMS1gYPJZngYA%3D%3D
+Downloaded https://class.coursera.org/fe-001/lecture/index (82703 bytes)
+
+
+Downloading class: fe-001
+<urllib2.OpenerDirector instance at 0x7eccb16c>
+<urllib2.Request instance at 0x7eccb20c>
+https://class.coursera.org/fe-001/lecture/index
+<_LWPCookieJar.LWPCookieJar[]>
+got csrf UyjjT7wWSfZOMkvvV9sJ
+<urllib2.OpenerDirector instance at 0x7ecc5ecc>
+<urllib2.Request instance at 0x7ecc5e2c>
+https://www.coursera.org/maestro/api/user/login
+password=Coursera&email_address=conanyuan%2Bcoursera%40gmail.com
+[('User-agent', 'Python-urllib/2.6'), ('Cookie', 'csrftoken=UyjjT7wWSfZOMkvvV9sJ'), ('Referer', 'https://www.coursera.org'), ('X-CSRFToken', 'UyjjT7wWSfZOMkvvV9sJ')]
+<_MozillaCookieJar.MozillaCookieJar[]>
+got session MuscodOddvA1mMB89ftfdPEwWJ%2BW7d3h%2FxOKh7sACm7IZAZu3NIO%2FYiYavGlV9a68HCBAqMOcw4F35jRjwBZ%2Bg%3D%3D%7CqGZY%2FkKy%2FjLKBBSyOaA6tSRbAJQZaOIB1UJcCZRtj%2FafKR3MFD0U5c2nfkxd9t4QoFoVkJVMI9e5UHycLfncAg%3D%3D
+Downloaded https://class.coursera.org/fe-001/lecture/index (82703 bytes)
