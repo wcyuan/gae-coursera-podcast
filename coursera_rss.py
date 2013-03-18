@@ -362,12 +362,13 @@ def rss_course_info(course_info):
 {3}
 </description>
 <itunes:image href="{4}"/>
-<atom:link rel="self" href="http://www.matehat.com/coursera-podcast/feeds/algorithms-design-and-analysis-part-2.xml" type="application/rss+xml"/>
-'''.format(course_info['name'],
+<atom:link rel="self" href="http://gae-coursera-podcast.appspot.com/course?name={5}" type="application/rss+xml"/>
+'''.format(course_info['name'].encode('ascii', 'ignore'),
            instance_info['home_link'],
-           course_info['instructor'],
-           course_info['short_description'],
-           course_info['large_icon']
+           course_info['instructor'].encode('ascii', 'ignore'),
+           course_info['short_description'].encode('ascii', 'ignore'),
+           course_info['large_icon'],
+           course_info['short_name'],
            )
 
 def rss_footer():
