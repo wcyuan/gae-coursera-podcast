@@ -198,15 +198,9 @@ class ReadUrl(object):
     def save_cookies(self):
         for cookie in self.cj:
             if cookie.name == 'csrf_token':
-                if self.csrftoken is not None:
-                    debug("Ignoring second CSRF {0}".format(cookie.value))
-                    #continue
                 self.csrftoken = cookie.value
                 debug("Got CSRF {0}".format(self.csrftoken))
             elif cookie.name == 'session':
-                if self.session is not None:
-                    debug("Ignoring second session {0}".format(cookie.value))
-                    #continue
                 self.session = cookie.value
                 debug("Got session {0}".format(self.csrftoken))
             else:
