@@ -71,7 +71,7 @@ import StringIO
 # Constants
 
 ALL_URL = 'https://www.coursera.org/maestro/api/topic/list?full=1'
-LOGIN_PATH = '/auth/auth_redirector'
+LOGIN_PATH = '/auth/auth_redirector?type=login&subtype=normal&email=&visiting=&minimal=true'
 LECTURES_PATH = "/lecture/index"
 TIME_FORMAT = "%a, %d %b %Y %H:%M:%S -0500"
 AUTH_URL = 'https://www.coursera.org/maestro/api/user/login'
@@ -440,8 +440,7 @@ def login(course_url, username, password):
                                   urllib2.HTTPHandler(),
                                   urllib2.HTTPSHandler())
 
-    req = urllib2.Request(course_url + LOGIN_PATH,
-                          urllib.urlencode({'type':'login', 'subtype': 'normal'}))
+    req = urllib2.Request(course_url + LOGIN_PATH)
     opener.open(req)
 
     for cookie in cj:
@@ -464,18 +463,22 @@ def login(course_url, username, password):
     opener.close()
     return ret
 
+def login2(course_url, username, password):
+    """
+    Login to a Coursera course with the given username and password
+    """
     # first read the LECTURE_PATH to set the CSRFToken
-    #READURL.readurl(course_url + LECTURES_PATH)
+    READURL.readurl(course_url + LECTURES_PATH)
 
     # then read the AUTH_URL with username and password set
-    #READURL.readurl(AUTH_URL, {'email':username,
-    #'password':password})
+    READURL.readurl(AUTH_URL, {'email':username,
+                               'password':password})
 
     # then read the LOGIN_PATH (auth-redirector) to get the session id
-    #READURL.readurl(course_url + LOGIN_PATH, {'type':'login', 'subtype': 'normal'})
+    READURL.readurl(course_url + LOGIN_PATH)
 
     # then read the LECTURE_PATH again
-    #return READURL.readurl(course_url + LECTURES_PATH)
+    return READURL.readurl(course_url + LECTURES_PATH)
                                     
     #newurl = READURL.readurl(course_url + LOGIN_PATH).geturl()
     #return READURL.readurl(newurl, {'email':username,
