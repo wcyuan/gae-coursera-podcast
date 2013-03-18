@@ -156,42 +156,28 @@ class ReadUrl(object):
         # Make a urllib2 opener that saves cookies
         self.csrftoken = None
         self.session   = None
-        self.cj        = None
+        self.cj        = cookielib.CookieJar()
         self.opener    = None
-        #self.hn        = None
-        #self.fn        = None
-        self.reset()
 
-    def reset(self):
-        if self.opener is not None:
-            debug("Closing opener")
-            self.opener.close()
-        #self.hn, self.fn = tempfile.mkstemp()
-        #self.cj = cookielib.MozillaCookieJar(self.fn)
-        #self.cj = cookielib.LWPCookieJar()
-        self.cj = cookielib.CookieJar()
-        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
-        #urllib2.HTTPHandler(),
-        #urllib2.HTTPSHandler())
-        self.set_headers()
-        #print self.fn
-
-    def set_headers(self):
+    def set_headers(self, opener):
         if self.csrftoken is not None and self.session is not None:
-            self.opener.addheaders.append(('Cookie', 'csrf_token=%s;session=%s' %
+            opener.addheaders.append(('Cookie', 'csrf_token=%s;session=%s' %
                                            (self.csrftoken, self.session)))
         elif self.csrftoken is not None:
-            self.opener.addheaders.append(('Cookie', 'csrftoken=%s' % self.csrftoken))
-            self.opener.addheaders.append(('Referer', 'https://www.coursera.org'))
-            self.opener.addheaders.append(('X-CSRFToken', self.csrftoken))
+            opener.addheaders.append(('Cookie', 'csrftoken=%s' % self.csrftoken))
+            opener.addheaders.append(('Referer', 'https://www.coursera.org'))
+            opener.addheaders.append(('X-CSRFToken', self.csrftoken))
 
-    def readurl(self, url, data=None, is_head=False):
+    def readurl(self, url, data=None, is_head=False, headers=False):
         """
         Read a given URL.
         """
         debug("Reading %s with data %s" % (url, data))
         debug(self.cj)
-        debug(self.opener.addheaders)
+        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
+        if headers:
+            self.set_headers(opener)
+        debug(opener.addheaders)
 
         # Encode any params
         if data is not None:
@@ -207,10 +193,10 @@ class ReadUrl(object):
         req = urllib2.Request(url, data)
         if is_head:
             req.get_method = lambda : 'HEAD'
-        res = self.opener.open(req)
+        res = opener.open(req)
         debug(res.headers.items())
         self.save_cookies()
-        self.reset()
+        opener.close()
         return res
 
     def save_cookies(self):
@@ -228,15 +214,14 @@ class ReadUrl(object):
                 self.session = cookie.value
                 debug("Got session {0}".format(self.csrftoken))
             else:
-                print "Skipping cookie {0}".format(cookie)
-        #self.set_headers()
+                debug("Skipping cookie {0}".format(cookie))
 
-    def bsoup(self, url):
+    def bsoup(self, url, headers=False):
         """
         Parse a given URL with Beautiful Soup.  Seems to sometimes have
         trouble with lxml, so force it to use html.parser.
         """
-        return BeautifulSoup(self.readurl(url), 'html.parser')
+        return BeautifulSoup(self.readurl(url, headers=headers), 'html.parser')
 
 READURL=ReadUrl()
 
@@ -313,17 +298,13 @@ def find_course(short_name, courses_file=None):
     return [course for course in all_courses(courses_file)
             if course['short_name'] == short_name]
 
-def get_lecture_info(lectures_url, page=None):
+def get_lecture_info(lectures_url):
     """
     Given a Coursera url which inludes the listing of all the
     lectures, parse the page and just a list of the relevant info
     about each lecture.
     """
-    if page is None:
-        page = READURL.bsoup(lectures_url)
-    else:
-        page = BeautifulSoup(page, 'html.parser')
-        #print page
+    page = READURL.bsoup(lectures_url, headers=True)
 
     # Go through all the links.  The lecture links are tagged with the
     # class 'lecture-link'.  They look like this:
@@ -373,101 +354,6 @@ def get_preview_lectures(course_info):
 # Functions for a specific course, login required
 #
 
-def login2(course_url, username, password):
-    """
-    Login to a Coursera course with the given username and password
-    """
-
-    csrftoken = ''
-    session = ''
-    #hn, fn = tempfile.mkstemp()
-    #cookies = cookielib.LWPCookieJar()
-    cookies = cookielib.CookieJar()
-    handlers = [
-        #urllib2.HTTPHandler(),
-        #urllib2.HTTPSHandler(),
-        urllib2.HTTPCookieProcessor(cookies)
-        ]
-    opener = urllib2.build_opener(*handlers)
-
-    req = urllib2.Request(course_url + LECTURES_PATH)
-    print opener
-    print req
-    print req.get_full_url()
-    print cookies
-    res = opener.open(req)
-
-    for cookie in cookies:
-        if cookie.name == 'csrf_token':
-            csrftoken = cookie.value
-            print "got csrf %s" % csrftoken
-            break
-    opener.close()
-
-    # Now make a call to the authenticator url:
-    #cj = cookielib.MozillaCookieJar(fn)
-    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookies))
-    #urllib2.HTTPHandler(),
-    #                              urllib2.HTTPSHandler())
-
-    opener.addheaders.append(('Cookie', 'csrftoken=%s' % csrftoken))
-    opener.addheaders.append(('Referer', 'https://www.coursera.org'))
-    opener.addheaders.append(('X-CSRFToken', csrftoken))
-    req = urllib2.Request(AUTH_URL)
-
-    data = urllib.urlencode({'email_address': username,
-                             'password': password})
-    req.add_data(data)
-
-    print opener
-    print req
-    print req.get_full_url()
-    print req.data
-    print opener.addheaders
-    print cookies
-    opener.open(req)
-
-    #cj.save()
-    opener.close()
-    #os.close(hn)
-
-    #cj = cookielib.MozillaCookieJar(fn)
-    #cookies = StringIO.StringIO()
-    #NETSCAPE_HEADER = '# Netscape HTTP Cookie File'
-    #cookies.write(NETSCAPE_HEADER)
-    #cookies.write(open(fn, 'r').read())
-    #cookies.flush()
-    #cookies.seek(0)
-    #cj._really_load(cookies, 'StringIO.cookies', False, False)
-
-    # It is crucial that the opener is rebuilt here...
-    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookies))
-                                  #urllib2.HTTPHandler(),
-                                  #urllib2.HTTPSHandler())
-
-    req = urllib2.Request(course_url + LOGIN_PATH)
-    opener.open(req)
-
-    for cookie in cookies:
-            if cookie.name == 'session':
-                session = cookie.value
-                print "got session %s" % session
-                break
-            print cookie
-    print "session: %s" % session
-    #opener.close()
-
-    #opener = urllib2.build_opener(urllib2.HTTPHandler(), urllib2.HTTPSHandler())
-    req = urllib2.Request(course_url + LECTURES_PATH)
-
-    #opener.addheaders.append(('Cookie', 'csrf_token=%s;session=%s' % (csrftoken, session)))
-    ret = opener.open(req).read()
-
-    # opener = get_opener(cookies_file)
-    # ret = opener.open(url).read()
-    opener.close()
-    return ret
-
 def login(course_url, username, password):
     """
     Login to a Coursera course with the given username and password
@@ -477,18 +363,11 @@ def login(course_url, username, password):
 
     # then read the AUTH_URL with username and password set
     READURL.readurl(AUTH_URL, {'email_address':username,
-                               'password':password})
+                               'password':password}, headers=True)
 
     # then read the LOGIN_PATH (auth-redirector) to get the session id
     READURL.readurl(course_url + LOGIN_PATH)
-
-    # then read the LECTURE_PATH again
-    return READURL.readurl(course_url + LECTURES_PATH)
-                                    
-    #newurl = READURL.readurl(course_url + LOGIN_PATH).geturl()
-    #return READURL.readurl(newurl, {'email':username,
-    #                                'password':password,
-    #                                'login': 'Login'})
+    return
 
 def get_current_instance(course_info):
     """
@@ -520,7 +399,8 @@ def get_current_lectures(course_info, username, password):
     #   http://class.coursera.org/<short_name><suffix>    
     # where the suffix indicates which instance of the course this is
     home = current['home_link']
-    return get_lecture_info(home + LECTURES_PATH, page=login2(home, username, password))
+    login(home, username, password)
+    return get_lecture_info(home + LECTURES_PATH)
 
 # --------------------------------------------------------------------
 # Functions for outputting XML RSS information
