@@ -55,7 +55,7 @@ https://github.com/jplehmann/coursera/commit/6e2725edf9e5c5be88ed5a95c84f6834ada
 # usable on Google App Engine, so I'm sticking to the older tech.
 from   bs4        import BeautifulSoup
 import cookielib
-from   datetime   import datetime, timedelta, date
+from   datetime   import datetime, timedelta
 from   itertools  import izip_longest
 import json
 from   logging    import getLogger, DEBUG, debug
@@ -63,9 +63,6 @@ from   optparse   import OptionParser
 import re
 import urllib
 import urllib2
-import tempfile
-import os
-import StringIO
 
 # --------------------------------------------------------------------
 # Constants
@@ -251,7 +248,7 @@ def print_course_list(courses_file=None):
     Download the list of all courses, and print each course's short
     name
     """
-    courses = all_courses(courses_file=None)
+    courses = all_courses(courses_file=courses_file)
     lines = []
     for ii in range(len(courses)):
         course_info = courses[ii]
