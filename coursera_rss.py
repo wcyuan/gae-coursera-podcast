@@ -427,14 +427,14 @@ def login(course_url, username, password):
     opener.close()
     os.close(hn)
 
-    cj = cookielib.MozillaCookieJar()
-    cookies = StringIO.StringIO()
-    NETSCAPE_HEADER = '# Netscape HTTP Cookie File'
-    cookies.write(NETSCAPE_HEADER)
-    cookies.write(open(fn, 'r').read())
-    cookies.flush()
-    cookies.seek(0)
-    cj._really_load(cookies, 'StringIO.cookies', False, False)
+    #cj = cookielib.MozillaCookieJar(fn)
+    #cookies = StringIO.StringIO()
+    #NETSCAPE_HEADER = '# Netscape HTTP Cookie File'
+    #cookies.write(NETSCAPE_HEADER)
+    #cookies.write(open(fn, 'r').read())
+    #cookies.flush()
+    #cookies.seek(0)
+    #cj._really_load(cookies, 'StringIO.cookies', False, False)
 
     opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj),
                                   urllib2.HTTPHandler(),
