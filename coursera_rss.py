@@ -164,13 +164,15 @@ class ReadUrl(object):
 
     def reset(self):
         if self.opener is not None:
+            debug("Closing opener")
             self.opener.close()
         #self.hn, self.fn = tempfile.mkstemp()
         #self.cj = cookielib.MozillaCookieJar(self.fn)
+        #self.cj = cookielib.LWPCookieJar()
         self.cj = cookielib.CookieJar()
-        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj),
-                                           urllib2.HTTPHandler(),
-                                           urllib2.HTTPSHandler())
+        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
+        #urllib2.HTTPHandler(),
+        #urllib2.HTTPSHandler())
         self.set_headers()
         #print self.fn
 
@@ -208,11 +210,11 @@ class ReadUrl(object):
         res = self.opener.open(req)
         debug(res.headers.items())
         self.save_cookies()
-        #self.reset()
+        self.reset()
         return res
 
     def save_cookies(self):
-        for cookie in self.cj: 
+        for cookie in self.cj:
             if cookie.name == 'csrf_token':
                 if self.csrftoken is not None:
                     debug("Ignoring second CSRF {0}".format(cookie.value))
@@ -227,7 +229,7 @@ class ReadUrl(object):
                 debug("Got session {0}".format(self.csrftoken))
             else:
                 print "Skipping cookie {0}".format(cookie)
-        self.set_headers()
+        #self.set_headers()
 
     def bsoup(self, url):
         """
@@ -371,18 +373,19 @@ def get_preview_lectures(course_info):
 # Functions for a specific course, login required
 #
 
-def login(course_url, username, password):
+def login2(course_url, username, password):
     """
     Login to a Coursera course with the given username and password
     """
 
     csrftoken = ''
     session = ''
-    hn, fn = tempfile.mkstemp()
-    cookies = cookielib.LWPCookieJar()
+    #hn, fn = tempfile.mkstemp()
+    #cookies = cookielib.LWPCookieJar()
+    cookies = cookielib.CookieJar()
     handlers = [
-        urllib2.HTTPHandler(),
-        urllib2.HTTPSHandler(),
+        #urllib2.HTTPHandler(),
+        #urllib2.HTTPSHandler(),
         urllib2.HTTPCookieProcessor(cookies)
         ]
     opener = urllib2.build_opener(*handlers)
@@ -402,8 +405,8 @@ def login(course_url, username, password):
     opener.close()
 
     # Now make a call to the authenticator url:
-    cj = cookielib.MozillaCookieJar(fn)
-    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
+    #cj = cookielib.MozillaCookieJar(fn)
+    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookies))
     #urllib2.HTTPHandler(),
     #                              urllib2.HTTPSHandler())
 
@@ -421,12 +424,12 @@ def login(course_url, username, password):
     print req.get_full_url()
     print req.data
     print opener.addheaders
-    print cj
+    print cookies
     opener.open(req)
 
-    cj.save()
+    #cj.save()
     opener.close()
-    os.close(hn)
+    #os.close(hn)
 
     #cj = cookielib.MozillaCookieJar(fn)
     #cookies = StringIO.StringIO()
@@ -437,14 +440,15 @@ def login(course_url, username, password):
     #cookies.seek(0)
     #cj._really_load(cookies, 'StringIO.cookies', False, False)
 
-    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj),
-                                  urllib2.HTTPHandler(),
-                                  urllib2.HTTPSHandler())
+    # It is crucial that the opener is rebuilt here...
+    opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cookies))
+                                  #urllib2.HTTPHandler(),
+                                  #urllib2.HTTPSHandler())
 
     req = urllib2.Request(course_url + LOGIN_PATH)
     opener.open(req)
 
-    for cookie in cj:
+    for cookie in cookies:
             if cookie.name == 'session':
                 session = cookie.value
                 print "got session %s" % session
@@ -464,7 +468,7 @@ def login(course_url, username, password):
     opener.close()
     return ret
 
-def login2(course_url, username, password):
+def login(course_url, username, password):
     """
     Login to a Coursera course with the given username and password
     """
@@ -472,7 +476,7 @@ def login2(course_url, username, password):
     READURL.readurl(course_url + LECTURES_PATH)
 
     # then read the AUTH_URL with username and password set
-    READURL.readurl(AUTH_URL, {'email':username,
+    READURL.readurl(AUTH_URL, {'email_address':username,
                                'password':password})
 
     # then read the LOGIN_PATH (auth-redirector) to get the session id
@@ -516,7 +520,7 @@ def get_current_lectures(course_info, username, password):
     #   http://class.coursera.org/<short_name><suffix>    
     # where the suffix indicates which instance of the course this is
     home = current['home_link']
-    return get_lecture_info(home + LECTURES_PATH, page=login(home, username, password))
+    return get_lecture_info(home + LECTURES_PATH, page=login2(home, username, password))
 
 # --------------------------------------------------------------------
 # Functions for outputting XML RSS information
