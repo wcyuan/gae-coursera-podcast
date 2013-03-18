@@ -86,37 +86,38 @@ AUTH_URL = 'https://www.coursera.org/maestro/api/user/login'
 # Main and command line arguments
 
 def main():
-    opts, course_name = getopts()
+    opts, course_names = getopts()
 
     # If we weren't given a course, just print all the courses.
-    if course_name is None:
+    if len(course_names) == 0:
         print_course_list(courses_file=opts.courses)
         return
 
-    # Find the given course
-    matches = find_course(course_name, courses_file=opts.courses)
-    if len(matches) < 1:
-        raise ValueError("Can't find course")
-    if len(matches) > 1:
-        raise ValueError("Too many matches for course")
-    course_info = matches[0]
+    for course_name in course_names:
+        # Find the given course
+        matches = find_course(course_name, courses_file=opts.courses)
+        if len(matches) < 1:
+            raise ValueError("Can't find course %s" % course_name)
+        if len(matches) > 1:
+            raise ValueError("Too many matches for course")
+        course_info = matches[0]
 
-    # Get information about each of the lectures.  This might return
-    # None, if thre is no preview available for the course.
-    lecture_data = get_preview_lectures(course_info)
-    if lecture_data is None:
-        debug("No preview for course %s" % course_info['short_name'])
-        if opts.username is None or opts.password is None:
-            print "Can't continue without username and password"
-        lecture_data = get_current_lectures(course_info,
-                                            opts.username,
-                                            opts.password)
+        # Get information about each of the lectures.  This might return
+        # None, if thre is no preview available for the course.
+        lecture_data = get_preview_lectures(course_info)
+        if lecture_data is None:
+            debug("No preview for course %s" % course_info['short_name'])
+            if opts.username is None or opts.password is None:
+                print "Can't continue without username and password"
+            lecture_data = get_current_lectures(course_info,
+                                                opts.username,
+                                                opts.password)
 
-    # Print the course and its lectures in the desired format.
-    if opts.xml:
-        print course_rss(course_info, lecture_data)
-    else:
-        print texttable(lecture_data)
+        # Print the course and its lectures in the desired format.
+        if opts.xml:
+            print course_rss(course_info, lecture_data)
+        else:
+            print texttable(lecture_data)
 
 def getopts():
     """
@@ -139,14 +140,7 @@ def getopts():
     if opts.verbose:
         getLogger().setLevel(DEBUG)
 
-    if len(args) == 0:
-        course_name = None
-    elif len(args) == 1:
-        course_name = args[0]
-    else:
-        raise ValueError("Too many arguments: %s" % ', '.join(args))
-
-    return opts, course_name
+    return opts, args
 
 # --------------------------------------------------------------------
 # Reading and parsing web pages
@@ -159,24 +153,26 @@ class ReadUrl(object):
         self.cj        = cookielib.CookieJar()
         self.opener    = None
 
-    def set_headers(self, opener):
-        if self.csrftoken is not None and self.session is not None:
+    def set_headers(self, opener, headers):
+        if (headers == 'BOTH'
+            and self.csrftoken is not None and self.session is not None):
             opener.addheaders.append(('Cookie', 'csrf_token=%s;session=%s' %
                                            (self.csrftoken, self.session)))
-        elif self.csrftoken is not None:
+        elif ((headers == 'BOTH' or headers == 'CSRF')
+              and self.csrftoken is not None):
             opener.addheaders.append(('Cookie', 'csrftoken=%s' % self.csrftoken))
             opener.addheaders.append(('Referer', 'https://www.coursera.org'))
             opener.addheaders.append(('X-CSRFToken', self.csrftoken))
 
-    def readurl(self, url, data=None, is_head=False, headers=False):
+    def readurl(self, url, data=None, is_head=False, headers=None):
         """
         Read a given URL.
         """
         debug("Reading %s with data %s" % (url, data))
         debug(self.cj)
         opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.cj))
-        if headers:
-            self.set_headers(opener)
+        if headers is not None:
+            self.set_headers(opener, headers)
         debug(opener.addheaders)
 
         # Encode any params
@@ -204,19 +200,19 @@ class ReadUrl(object):
             if cookie.name == 'csrf_token':
                 if self.csrftoken is not None:
                     debug("Ignoring second CSRF {0}".format(cookie.value))
-                    continue
+                    #continue
                 self.csrftoken = cookie.value
                 debug("Got CSRF {0}".format(self.csrftoken))
             elif cookie.name == 'session':
                 if self.session is not None:
                     debug("Ignoring second session {0}".format(cookie.value))
-                    continue
+                    #continue
                 self.session = cookie.value
                 debug("Got session {0}".format(self.csrftoken))
             else:
                 debug("Skipping cookie {0}".format(cookie))
 
-    def bsoup(self, url, headers=False):
+    def bsoup(self, url, headers=None):
         """
         Parse a given URL with Beautiful Soup.  Seems to sometimes have
         trouble with lxml, so force it to use html.parser.
@@ -274,7 +270,7 @@ def print_course_list(courses_file=None):
                           str(course_info['short_name']),
                           '%s/%s' % (instance['start_month'],
                                      instance['start_year']),
-                          "ACTIVE" if instance['active'] else 'INACTIVE', 
+                          "ACTIVE" if instance['active'] else 'INACTIVE',
                           str(instance['home_link']),
                           str(course_info['preview_link'])])
         if len(course_info['courses']) == 0:
@@ -304,11 +300,11 @@ def get_lecture_info(lectures_url):
     lectures, parse the page and just a list of the relevant info
     about each lecture.
     """
-    page = READURL.bsoup(lectures_url, headers=True)
+    page = READURL.bsoup(lectures_url, headers="BOTH")
 
     # Go through all the links.  The lecture links are tagged with the
     # class 'lecture-link'.  They look like this:
-    # 
+    #
     # <a class="lecture-link" data-lecture-id="124" data-modal=".course-modal-frame" data-modal-iframe="https://class.coursera.org/nlp/lecture/preview_view?lecture_id=124" href="https://class.coursera.org/nlp/lecture/preview_view/124" rel="lecture-link">
     # Course Introduction (14:11)</a>
     #
@@ -363,7 +359,7 @@ def login(course_url, username, password):
 
     # then read the AUTH_URL with username and password set
     READURL.readurl(AUTH_URL, {'email_address':username,
-                               'password':password}, headers=True)
+                               'password':password}, headers='CSRF')
 
     # then read the LOGIN_PATH (auth-redirector) to get the session id
     READURL.readurl(course_url + LOGIN_PATH)
@@ -396,7 +392,7 @@ def get_current_lectures(course_info, username, password):
     """
     current = get_current_instance(course_info)
     # home_link looks like:
-    #   http://class.coursera.org/<short_name><suffix>    
+    #   http://class.coursera.org/<short_name><suffix>
     # where the suffix indicates which instance of the course this is
     home = current['home_link']
     login(home, username, password)
@@ -489,4 +485,3 @@ def course_rss(course_info, lecture_data):
 
 if __name__ == "__main__":
     main()
-
