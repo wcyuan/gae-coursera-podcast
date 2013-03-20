@@ -169,6 +169,7 @@ class UpdatePage(webapp2.RequestHandler):
                                                                  username,
                                                                  password)
             if lecture_data is None or len(lecture_data) == 0:
+                logging.info("Found no lectures for %s" % name)
                 template = jinja_environment.get_template('notfound.html')
                 self.response.out.write(template.render({
                     'name': name}))
