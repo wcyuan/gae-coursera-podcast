@@ -91,6 +91,7 @@ def main():
         return
 
     for course_name in course_names:
+        #print "Running for course {course}".format(course=course_name)
         # Find the given course
         matches = find_course(course_name, courses_file=opts.courses)
         if len(matches) < 1:
@@ -193,13 +194,17 @@ class ReadUrl(object):
         return res
 
     def save_cookies(self):
+        # XXX TODO: There is a bug here -- if we ask for multiple
+        # courses, we'll have a session for each course in the cookie
+        # jar.  We only want to save the session for the course we are
+        # currently looking at.
         for cookie in self.cj:
             if cookie.name == 'csrf_token':
                 self.csrftoken = cookie.value
                 debug("Got CSRF {0}".format(self.csrftoken))
             elif cookie.name == 'session':
                 self.session = cookie.value
-                debug("Got session {0}".format(self.csrftoken))
+                debug("Got session {0}".format(self.session))
             else:
                 debug("Skipping cookie {0}".format(cookie))
 
@@ -226,7 +231,7 @@ def texttable(table, delim=' '):
     formats = ["%-{0}s".format(width) for width in widths]
     return "\n".join(delim.join(format % fld
                                 for (format, fld) in zip(formats, line))
-                    for line in table)
+                     for line in table)
 
 # --------------------------------------------------------------------
 # Functions for course list
@@ -323,6 +328,10 @@ def get_lecture_info(lectures_url):
             description = "%s : %s" % (week_desc, name)
             full_name = "%s - %s" % (week_desc[:13], name)
             lectures.append([full_name, duration, size, mp4url, description])
+
+    for lec in lectures:
+        for ii in range(len(lec)):
+            lec[ii] = lec[ii].encode('ascii', 'ignore')
 
     return lectures
 
