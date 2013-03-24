@@ -194,10 +194,13 @@ class ReadUrl(object):
         return res
 
     def save_cookies(self):
-        # XXX TODO: There is a bug here -- if we ask for multiple
-        # courses, we'll have a session for each course in the cookie
-        # jar.  We only want to save the session for the course we are
-        # currently looking at.
+        """
+        This isn't really correct.  The cookies are associated with
+        specific courses, so we should really find the cookies for the
+        course we are going to be looking up.  But instead, we rely on
+        the caller to know that they have to reset_cookies for new
+        courses.
+        """
         for cookie in self.cj:
             if cookie.name == 'csrf_token':
                 self.csrftoken = cookie.value
@@ -207,6 +210,9 @@ class ReadUrl(object):
                 debug("Got session {0}".format(self.session))
             else:
                 debug("Skipping cookie {0}".format(cookie))
+
+    def reset_cookies(self):
+        self.cj = cookielib.CookieJar()
 
     def bsoup(self, url, headers=None):
         """
@@ -354,6 +360,10 @@ def login(course_url, username, password):
     """
     Login to a Coursera course with the given username and password
     """
+    # Reset cookies, otherwise the cookies from one course could hide
+    # the cookies from another course.
+    READURL.reset_cookies()
+
     # first read the LECTURE_PATH to set the CSRFToken
     READURL.readurl(course_url + LECTURES_PATH)
 
@@ -424,10 +434,10 @@ def rss_course_info(course_info):
 </description>
 <itunes:image href="{4}"/>
 <atom:link rel="self" href="http://gae-coursera-podcast.appspot.com/course?name={5}" type="application/rss+xml"/>
-'''.format(course_info['name'].encode('ascii', 'ignore'),
+'''.format(course_info['name'],
            instance_info['home_link'],
-           course_info['instructor'].encode('ascii', 'ignore'),
-           course_info['short_description'].encode('ascii', 'ignore'),
+           course_info['instructor'],
+           course_info['short_description'],
            course_info['large_icon'],
            course_info['short_name'],
            )
