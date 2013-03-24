@@ -198,8 +198,8 @@ class ReadUrl(object):
         This isn't really correct.  The cookies are associated with
         specific courses, so we should really find the cookies for the
         course we are going to be looking up.  But instead, we rely on
-        the caller to know that they have to reset_cookies for new
-        courses.
+        the caller to know that they have to have a different instance
+        of ReadUrl for each course.
         """
         for cookie in self.cj:
             if cookie.name == 'csrf_token':
@@ -210,9 +210,6 @@ class ReadUrl(object):
                 debug("Got session {0}".format(self.session))
             else:
                 debug("Skipping cookie {0}".format(cookie))
-
-    def reset_cookies(self):
-        self.cj = cookielib.CookieJar()
 
     def bsoup(self, url, headers=None):
         """
@@ -296,13 +293,16 @@ def find_course(short_name, courses_file=None):
     return [course for course in all_courses(courses_file)
             if course['short_name'] == short_name]
 
-def get_lecture_info(lectures_url):
+def get_lecture_info(lectures_url, readurl=None):
     """
     Given a Coursera url which inludes the listing of all the
     lectures, parse the page and just a list of the relevant info
     about each lecture.
     """
-    page = READURL.bsoup(lectures_url, headers="BOTH")
+    if readurl is None:
+        readurl=READURL
+
+    page = readurl.bsoup(lectures_url, headers="BOTH")
 
     # Go through all the links.  The lecture links are tagged with the
     # class 'lecture-link'.  They look like this:
@@ -327,9 +327,9 @@ def get_lecture_info(lectures_url):
             else:
                 name = vidtext
                 duration = ''
-            vidpage = READURL.bsoup(vidlink)
+            vidpage = readurl.bsoup(vidlink)
             mp4url = vidpage.find('source', attrs={'type': 'video/mp4'})['src']
-            vidinfo = READURL.readurl(mp4url, is_head=True)
+            vidinfo = readurl.readurl(mp4url, is_head=True)
             size = vidinfo.headers['Content-Length']
             description = "%s : %s" % (week_desc, name)
             full_name = "%s - %s" % (week_desc[:13], name)
@@ -360,20 +360,18 @@ def login(course_url, username, password):
     """
     Login to a Coursera course with the given username and password
     """
-    # Reset cookies, otherwise the cookies from one course could hide
-    # the cookies from another course.
-    READURL.reset_cookies()
+    readurl = ReadUrl()
 
     # first read the LECTURE_PATH to set the CSRFToken
-    READURL.readurl(course_url + LECTURES_PATH)
+    readurl.readurl(course_url + LECTURES_PATH)
 
     # then read the AUTH_URL with username and password set
-    READURL.readurl(AUTH_URL, {'email_address':username,
+    readurl.readurl(AUTH_URL, {'email_address':username,
                                'password':password}, headers='CSRF')
 
     # then read the LOGIN_PATH (auth-redirector) to get the session id
-    READURL.readurl(course_url + LOGIN_PATH)
-    return
+    readurl.readurl(course_url + LOGIN_PATH)
+    return readurl
 
 def get_current_instance(course_info):
     """
@@ -405,8 +403,8 @@ def get_current_lectures(course_info, username, password):
     #   http://class.coursera.org/<short_name><suffix>
     # where the suffix indicates which instance of the course this is
     home = current['home_link']
-    login(home, username, password)
-    return get_lecture_info(home + LECTURES_PATH)
+    readurl = login(home, username, password)
+    return get_lecture_info(home + LECTURES_PATH, readurl)
 
 # --------------------------------------------------------------------
 # Functions for outputting XML RSS information
