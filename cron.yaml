@@ -18,3 +18,8 @@ cron:
 - description: dsp lecture update
   url: /update?name=dsp&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
   schedule: every day 0:20
+
+- description: scala lecture update
+  url: /update?name=progfun&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+  schedule: every day 0:25
+
