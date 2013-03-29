@@ -147,7 +147,7 @@ class UpdatePage(webapp2.RequestHandler):
                 self.response.out.write(template.render({
                     'name': name}))
                 return
-            course = matches[0]
+            (course, instance) = matches[0]
             logging.info("Found course %s" % name)
             course_obj = self.update_course(course)
             if course_obj is None:
@@ -166,6 +166,7 @@ class UpdatePage(webapp2.RequestHandler):
                     return
                 logging.info("No preview, reading current course info %s" % name)
                 lecture_data = coursera_rss.get_current_lectures(course,
+                                                                 instance,
                                                                  username,
                                                                  password)
             if lecture_data is None or len(lecture_data) == 0:

@@ -98,7 +98,7 @@ def main():
             raise ValueError("Can't find course %s" % course_name)
         if len(matches) > 1:
             raise ValueError("Too many matches for course")
-        course_info = matches[0]
+        (course_info, instance_info) = matches[0]
 
         # Get information about each of the lectures.  This might return
         # None, if thre is no preview available for the course.
@@ -109,11 +109,14 @@ def main():
                 print "Can't continue without username and password"
             lecture_data = get_current_lectures(course_info,
                                                 opts.username,
-                                                opts.password)
+                                                opts.password,
+                                                instance_info)
 
         # Print the course and its lectures in the desired format.
         if opts.xml:
-            print course_rss(course_info, lecture_data)
+            print course_rss(course_info, instance_info, lecture_data)
+        elif opts.html:
+            print course_html(course_info, instance_info, lecture_data)
         else:
             print texttable(lecture_data)
 
@@ -128,6 +131,9 @@ def getopts():
     parser.add_option('--xml',
                       action='store_true',
                       help='Output XML RSS format')
+    parser.add_option('--html',
+                      action='store_true',
+                      help='Output HTML format')
     parser.add_option('-u', '--username',
                       help='Cousera username')
     parser.add_option('-p', '--password',
@@ -290,8 +296,34 @@ def find_course(short_name, courses_file=None):
     Returns a list of courses matching the given course short_name.
     We expect no more than one match, but return a list to be safe.
     """
-    return [course for course in all_courses(courses_file)
-            if course['short_name'] == short_name]
+    courselist = all_courses(courses_file)
+    matches = [course for course in courselist
+               if course['short_name'] == short_name]
+    if len(matches) == 0:
+        for course in courselist:
+            for instance in course['courses']:
+                if match_instance(instance, short_name):
+                    matches.append((course, instance))
+                    break
+    else:
+        matches = [(course, get_current_instance(course))
+                   for course in matches]
+
+    return matches
+
+def match_instance(instance, name):
+    """
+    Given an instance hash and a name, returns True if the name
+    matches the instance.
+
+    For example, the course name might be progfun, the instance name
+    might be progfun-2012-001 (to indicate a particular time that the
+    course ran).  But the instance hash just has a home_link which is
+    https://class.coursera.org/progfun-2012-001/assignment/index.  So
+    we have to match progfun-2012-001 with the home_link.
+    """
+    urlmatch = '/{0}/'.format(name)
+    return instance['home_link'].find(urlmatch) >= 0
 
 def get_lecture_info(lectures_url, readurl=None):
     """
@@ -391,18 +423,19 @@ def get_current_instance(course_info):
     else:
         return instances[-1]
 
-def get_current_lectures(course_info, username, password):
+def get_current_lectures(course_info, username, password, instance_info=None):
     """
     Get the current set of lectures for a given course.
 
     Note, it seems that once you get the lecture urls, you can
     download the videos without logging in.
     """
-    current = get_current_instance(course_info)
+    if instance_info is None:
+        instance_info = get_current_instance(course_info)
     # home_link looks like:
     #   http://class.coursera.org/<short_name><suffix>
     # where the suffix indicates which instance of the course this is
-    home = current['home_link']
+    home = instance_info['home_link']
     readurl = login(home, username, password)
     return get_lecture_info(home + LECTURES_PATH, readurl)
 
@@ -416,8 +449,7 @@ def rss_header():
 <channel>
 '''
 
-def rss_course_info(course_info):
-    instance_info = get_current_instance(course_info)
+def rss_course_info(course_info, instance_info):
     return '''
 <title>{0}</title>
 <link>{1}</link>
@@ -479,15 +511,85 @@ def rss_lecture_info(course_info, lecture_data):
         pub_date += oneday
     return ''.join(rss_lectures)
 
-def course_rss(course_info, lecture_data):
+def course_rss(course_info, instance_info, lecture_data):
     """
     Returns an XML file (as a string) which represents an RSS feed for
     this course, with an item for each lecture.
     """
     return ''.join((rss_header(),
-                    rss_course_info(course_info),
+                    rss_course_info(course_info, instance_info),
                     rss_lecture_info(course_info, lecture_data),
                     rss_footer()))
+
+# --------------------------------------------------------------------
+# Functions for outputting XML RSS information
+#
+
+def html_header(course_info):
+    return '''
+<html>
+<head><title>{0}</title></head>
+<body>
+'''.format(course_info['name'])
+
+def html_course_info(course_info, instance_info):
+    return '''
+<h1>{0}</h1>
+<p><img src="{4}"><br>{5}</p>
+<p>{3}<br>
+Taught by {2}.<br>
+<a href="{1}">{1}</a></p>
+<table border=1><tr>
+<th>name</th>
+<th>description</th>
+<th>url</th>
+<th>size</th>
+<th>time</th>
+</tr>
+'''.format(course_info['name'],
+           instance_info['home_link'],
+           course_info['instructor'],
+           course_info['short_description'],
+           course_info['large_icon'],
+           course_info['short_name'],
+           )
+
+def html_footer():
+    return '''
+</table>
+</body>
+</html>
+'''
+
+def html_lecture_info(lecture_data):
+    lectures = []
+    for lecture in lecture_data:
+        (name, duration, size, mp4url, description) = lecture
+        lectures.append('''
+<tr>
+<td>{0}</td>
+<td>{4}</td>
+<td><a href="{1}">download</a></td>
+<td>{2}</td>
+<td>{3}</td>
+</tr>
+'''.format(name,
+           mp4url,
+           size,
+           duration,
+           description,
+           ))
+    return ''.join(lectures)
+
+def course_html(course_info, instance_info, lecture_data):
+    """
+    Returns an HTML file (as a string) which lists the lectures with
+    links to the videos.
+    """
+    return ''.join((html_header(course_info),
+                    html_course_info(course_info, instance_info),
+                    html_lecture_info(lecture_data),
+                    html_footer()))
 
 # --------------------------------------------------------------------
 
