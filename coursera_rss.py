@@ -102,7 +102,7 @@ def main():
 
         # Get information about each of the lectures.  This might return
         # None, if thre is no preview available for the course.
-        lecture_data = get_preview_lectures(course_info)
+        lecture_data = get_preview_lectures(course_info, opts.save_lectures)
         if lecture_data is None:
             debug("No preview for course %s" % course_info['short_name'])
             if opts.username is None or opts.password is None:
@@ -110,7 +110,8 @@ def main():
             lecture_data = get_current_lectures(course_info,
                                                 opts.username,
                                                 opts.password,
-                                                instance_info)
+                                                instance_info,
+                                                opts.save_lectures)
 
         # Print the course and its lectures in the desired format.
         if opts.xml:
@@ -137,6 +138,8 @@ def getopts():
     parser.add_option('-u', '--username',
                       help='Cousera username')
     parser.add_option('-p', '--password',
+                      help='Output XML RSS format')
+    parser.add_option('--save_lectures',
                       help='Output XML RSS format')
     parser.add_option('--courses',
                       help='file with full list of courses')
@@ -325,7 +328,7 @@ def match_instance(instance, name):
     urlmatch = '/{0}/'.format(name)
     return instance['home_link'].find(urlmatch) >= 0
 
-def get_lecture_info(lectures_url, readurl=None):
+def get_lecture_info(lectures_url, readurl=None, save_lectures=None):
     """
     Given a Coursera url which inludes the listing of all the
     lectures, parse the page and just a list of the relevant info
@@ -333,6 +336,11 @@ def get_lecture_info(lectures_url, readurl=None):
     """
     if readurl is None:
         readurl=READURL
+
+    if save_lectures is not None:
+        pagehtml = readurl.readurl(lectures_url, headers="BOTH")
+        with open(save_lectures, 'w') as fd:
+            fd.write(pagehtml.read())
 
     page = readurl.bsoup(lectures_url, headers="BOTH")
 
@@ -373,7 +381,7 @@ def get_lecture_info(lectures_url, readurl=None):
 
     return lectures
 
-def get_preview_lectures(course_info):
+def get_preview_lectures(course_info, save_lectures=None):
     """
     Given the JSON information about a course, get the lectures from
     the course's preview page.
@@ -382,7 +390,7 @@ def get_preview_lectures(course_info):
         return None
     if course_info['preview_link'] == "":
         return None
-    return get_lecture_info(course_info['preview_link'])
+    return get_lecture_info(course_info['preview_link'], save_lectures)
 
 # --------------------------------------------------------------------
 # Functions for a specific course, login required
@@ -423,7 +431,8 @@ def get_current_instance(course_info):
     else:
         return instances[-1]
 
-def get_current_lectures(course_info, username, password, instance_info=None):
+def get_current_lectures(course_info, username, password,
+                         instance_info=None, save_lectures=None):
     """
     Get the current set of lectures for a given course.
 
@@ -437,7 +446,7 @@ def get_current_lectures(course_info, username, password, instance_info=None):
     # where the suffix indicates which instance of the course this is
     home = instance_info['home_link']
     readurl = login(home, username, password)
-    return get_lecture_info(home + LECTURES_PATH, readurl)
+    return get_lecture_info(home + LECTURES_PATH, readurl, save_lectures)
 
 # --------------------------------------------------------------------
 # Functions for outputting XML RSS information
