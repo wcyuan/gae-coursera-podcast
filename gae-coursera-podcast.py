@@ -166,9 +166,9 @@ class UpdatePage(webapp2.RequestHandler):
                     return
                 logging.info("No preview, reading current course info %s" % name)
                 lecture_data = coursera_rss.get_current_lectures(course,
-                                                                 instance,
                                                                  username,
-                                                                 password)
+                                                                 password,
+                                                                 instance)
             if lecture_data is None or len(lecture_data) == 0:
                 logging.info("Found no lectures for %s" % name)
                 template = jinja_environment.get_template('notfound.html')

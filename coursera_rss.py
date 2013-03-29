@@ -374,11 +374,14 @@ def get_lecture_info(lectures_url, readurl=None, save_lectures=None):
             description = "%s : %s" % (week_desc, name)
             full_name = "%s - %s" % (week_desc[:13], name)
             resources = {}
-            resource_links = link.next_sibling.next_sibling
-            for resource in resource_links.find_all('a'):
-                title = resource['title'].encode('ascii', 'ignore')
-                href = resource['href'].encode('ascii', 'ignore')
-                resources[title] = href
+            resource_links = link.next_sibling
+            if resource_links is not None:
+                resource_links = resource_links.next_sibling
+            if resource_links is not None:
+                for resource in resource_links.find_all('a'):
+                    title = resource['title'].encode('ascii', 'ignore')
+                    href = resource['href'].encode('ascii', 'ignore')
+                    resources[title] = href
             lectures.append([full_name, duration, size, mp4url,
                              description, resources])
 
