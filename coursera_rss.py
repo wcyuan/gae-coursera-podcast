@@ -129,7 +129,7 @@ def getopts():
     parser.add_option('--verbose',
                       action='store_true',
                       help='Verbose mode')
-    parser.add_option('--xml',
+    parser.add_option('--xml', '--rss',
                       action='store_true',
                       help='Output XML RSS format')
     parser.add_option('--html',
@@ -373,10 +373,17 @@ def get_lecture_info(lectures_url, readurl=None, save_lectures=None):
             size = vidinfo.headers['Content-Length']
             description = "%s : %s" % (week_desc, name)
             full_name = "%s - %s" % (week_desc[:13], name)
-            lectures.append([full_name, duration, size, mp4url, description])
+            resources = {}
+            resource_links = link.next_sibling.next_sibling
+            for resource in resource_links.find_all('a'):
+                title = resource['title'].encode('ascii', 'ignore')
+                href = resource['href'].encode('ascii', 'ignore')
+                resources[title] = href
+            lectures.append([full_name, duration, size, mp4url,
+                             description, resources])
 
     for lec in lectures:
-        for ii in range(len(lec)):
+        for ii in range(len(lec)-1):
             lec[ii] = lec[ii].encode('ascii', 'ignore')
 
     return lectures
@@ -494,7 +501,7 @@ def rss_lecture_info(course_info, lecture_data):
                                  '%Y%m%d %H:%M:%S')
     oneday = timedelta(days=1)
     for lecture in lecture_data:
-        (name, duration, size, mp4url, description) = lecture
+        (name, duration, size, mp4url, description, _) = lecture
         rss_lectures.append('''
 <item>
 <title>{0}</title>
@@ -573,21 +580,25 @@ def html_footer():
 def html_lecture_info(lecture_data):
     lectures = []
     for lecture in lecture_data:
-        (name, duration, size, mp4url, description) = lecture
-        lectures.append('''
+        (name, duration, size, mp4url, description, resources) = lecture
+        row = '''
 <tr>
 <td>{0}</td>
 <td>{4}</td>
 <td><a href="{1}">download</a></td>
 <td>{2}</td>
 <td>{3}</td>
-</tr>
 '''.format(name,
            mp4url,
            size,
            duration,
            description,
-           ))
+           )
+        for resource in resources:
+            row += '<td><a href="{0}">{1}</a></td>'.format(
+                resources[resource], resource)
+        row += '</tr>'
+        lectures.append(row)
     return ''.join(lectures)
 
 def course_html(course_info, instance_info, lecture_data):

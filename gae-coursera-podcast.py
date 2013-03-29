@@ -177,7 +177,7 @@ class UpdatePage(webapp2.RequestHandler):
                 return
             logging.info("Got lectures")
             for ii in range(len(lecture_data)):
-                (lecture_name, duration, size, mp4url, description) = lecture_data[ii]
+                (lecture_name, duration, size, mp4url, description, _) = lecture_data[ii]
                 lecture_obj = db.get(Lecture.make_key(name, str(ii)))
                 if lecture_obj is None:
                     logging.info("Making lecture %d" % ii)
