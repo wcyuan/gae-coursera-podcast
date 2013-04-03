@@ -72,6 +72,8 @@ LOGIN_PATH = '/auth/auth_redirector?type=login&subtype=normal&email=&visiting=&m
 LECTURES_PATH = "/lecture/index"
 TIME_FORMAT = "%a, %d %b %Y %H:%M:%S -0500"
 AUTH_URL = 'https://www.coursera.org/maestro/api/user/login'
+#USER_COURSES_URL = 'https://www.coursera.org/maestro/api/topic/list_my?user_id=%s'
+#MY_ID = 101589
 
 # Couldn't figure out how to login to the main Coursera page and
 # download the list of courses that you are subscribed to.  I think it

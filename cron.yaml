@@ -23,3 +23,15 @@ cron:
   url: /update?name=progfun&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
   schedule: every day 0:25
 
+- description: compfinance lecture update
+  url: /update?name=compfinance&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+  schedule: every day 0:30
+
+- description: compmethods lecture update
+  url: /update?name=compmethods&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+  schedule: every day 0:35
+
+- description: musicproduction lecture update
+  url: /update?name=musicproduction&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+  schedule: every day 0:40
+
