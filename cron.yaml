@@ -3,15 +3,7 @@ cron:
   url: /update
   schedule: every sunday 0:00
 
-- description: scala lecture update
-  url: /update?name=progfun&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
+- description: startup lecture update
+  url: /update?name=startup&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
   schedule: every day 0:05
-
-- description: guitar lecture update
-  url: /update?name=guitar&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
-  schedule: every day 0:10
-
-- description: improv lecture update
-  url: /update?name=improvisation&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
-  schedule: every day 0:15
 
