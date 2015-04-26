@@ -3,7 +3,4 @@ cron:
   url: /update
   schedule: every sunday 0:00
 
-- description: startup lecture update
-  url: /update?name=startup&username=conanyuan%2Bcoursera%40gmail.com&password=Coursera
-  schedule: every day 0:05
 
